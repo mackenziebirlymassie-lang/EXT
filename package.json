@@ -1,0 +1,23 @@
+{
+  "name": "pfcc-finance-os",
+  "version": "2.0.0",
+  "description": "Local-first personal finance, treasury, and cashflow console with zero runtime dependencies and Android 7.0+ (Chromium 51+) compatibility.",
+  "main": "index.html",
+  "scripts": {
+    "test": "node --test tests/verify.mjs",
+    "android:sync": "node scripts/sync-android.mjs"
+  },
+  "keywords": [
+    "personal-finance",
+    "ledger",
+    "local-first",
+    "budgeting",
+    "fire",
+    "zero-dependency",
+    "android-webview"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

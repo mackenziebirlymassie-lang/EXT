@@ -1,0 +1,1249 @@
+<!DOCTYPE html>
+<html lang="en" data-theme-mode="dark">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0A0A0A" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <title>PFCC V2 | Developer Finance OS</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+    <link rel="stylesheet" href="style.css" />
+    <script defer src="js/compat.js"></script>
+    <script defer src="js/icons.js"></script>
+    <script defer src="js/i18n.js"></script>
+    <script defer src="js/themes.js"></script>
+    <script defer src="js/state.js"></script>
+    <script defer src="js/audio.js"></script>
+    <script defer src="js/markets.js"></script>
+    <script defer src="js/charts.js"></script>
+    <script defer src="js/ledger.js"></script>
+    <script defer src="js/planning.js"></script>
+    <script defer src="js/importer.js"></script>
+    <script defer src="js/cli.js"></script>
+    <script defer src="js/settings.js"></script>
+    <script defer src="js/main.js"></script>
+</head>
+<body>
+    <a href="#main-workspace" class="skip-link">Skip to workbench</a>
+
+    <div class="app-container">
+        <header class="app-header">
+            <div class="brand-lockup">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="36" height="36" class="app-logo" aria-hidden="true">
+                    <rect x="4" y="6" width="56" height="52" rx="8" fill="var(--bg-surface)" stroke="var(--accent-fill)" stroke-width="2.5" />
+                    <line x1="14" y1="48" x2="50" y2="48" stroke="var(--border-color)" stroke-width="2" stroke-linecap="round" />
+                    <path class="logo-trend-line" pathLength="100" d="M 15 41 L 26 30 L 35 35 L 49 19" fill="none" stroke="var(--text-primary)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+                    <polyline class="logo-trend-arrow" pathLength="100" points="40 19 49 19 49 28" fill="none" stroke="var(--text-primary)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+                    <circle class="logo-node-accent" cx="26" cy="30" r="3" fill="var(--accent-text)" />
+                    <circle class="logo-node-green" cx="49" cy="19" r="3" fill="var(--color-green)" />
+                </svg>
+                <div class="brand-text">
+                    <h1><span id="display-name">Developer</span>_Finance_OS</h1>
+                    <p class="brand-subtitle">Local-First Treasury, Ledger &amp; Runway Console</p>
+                </div>
+            </div>
+
+            <nav class="header-actions" aria-label="Workspace actions">
+                <button type="button" id="btn-open-cli" class="btn btn-outline" title="Command Palette (Ctrl+K)">
+                    <span class="icon-slot" data-icon="terminal" data-icon-size="15"></span>
+                    <span>CLI</span>
+                    <kbd class="cmd-kbd">Ctrl+K</kbd>
+                </button>
+                <button type="button" id="btn-toggle-sound" class="btn btn-outline" title="Toggle Web Audio Synth FX (M)" aria-pressed="true">
+                    <span class="icon-slot" data-icon="volumeOn" data-icon-size="15"></span>
+                    <span>Sound</span>
+                </button>
+                <button type="button" id="btn-toggle-privacy" class="btn btn-outline" title="Toggle Privacy Blur (Ctrl+L)" aria-pressed="false">
+                    <span class="icon-slot" data-icon="eye" data-icon-size="15"></span>
+                    <span>Privacy</span>
+                </button>
+                <button type="button" id="btn-import-csv" class="btn btn-outline" title="Bank Statement &amp; CSV Importer">
+                    <span class="icon-slot" data-icon="upload" data-icon-size="15"></span>
+                    <span>Import</span>
+                </button>
+                <button type="button" id="btn-export-csv" class="btn btn-outline" title="Export Transactions CSV">
+                    <span class="icon-slot" data-icon="download" data-icon-size="15"></span>
+                    <span data-i18n="export">CSV</span>
+                </button>
+                <button type="button" id="btn-print-report" class="btn btn-outline" title="Print Report">
+                    <span class="icon-slot" data-icon="printer" data-icon-size="15"></span>
+                    <span data-i18n="print">Report</span>
+                </button>
+                <button type="button" id="btn-shortcuts" class="btn btn-outline" title="Keyboard Shortcuts (?)" aria-label="Keyboard shortcuts help">
+                    <span class="icon-slot" data-icon="help" data-icon-size="15"></span>
+                    <span>Help</span>
+                </button>
+                <button type="button" id="btn-settings" class="btn btn-outline">
+                    <span class="icon-slot" data-icon="sliders" data-icon-size="15"></span>
+                    <span data-i18n="settings">Config</span>
+                </button>
+            </nav>
+        </header>
+
+        <!-- Persistent 4-Card Telemetry Strip -->
+        <section class="overview-band" aria-label="Financial telemetry">
+            <div class="metrics-grid">
+                <div class="metric-card metric-card-primary">
+                    <p class="metric-label" data-i18n="net_worth">Total Net Worth</p>
+                    <p id="net-worth-metric" class="metric-value metric-value-primary">$0.00</p>
+                    <p id="net-worth-sub" class="metric-sub">Fiat: $0 | Assets: $0</p>
+                </div>
+                <div class="metric-card">
+                    <p class="metric-label" data-i18n="total_income">Period Income</p>
+                    <p id="income-total" class="metric-value text-green">+0.00</p>
+                    <p class="metric-sub">Liquid Bal: <span id="balance">$0.00</span></p>
+                </div>
+                <div class="metric-card">
+                    <p class="metric-label" data-i18n="total_expenses">Period Expenses</p>
+                    <p id="expense-total" class="metric-value text-red">-0.00</p>
+                    <p class="metric-sub">Target Progress: <span id="goal-progress">0.0%</span></p>
+                </div>
+                <div class="metric-card">
+                    <p class="metric-label" data-i18n="cash_runway">Cash Runway</p>
+                    <p id="runway-metric" class="metric-value text-accent">--</p>
+                    <p id="health-sub" class="metric-sub">Health: 100/100</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Workbench Mode Switcher & Timeframe Controls -->
+        <section class="workbench-bar window-box" aria-label="Workbench navigation and timeframe">
+            <nav class="workbench-tabs" role="tablist" aria-label="Workbench views">
+                <button type="button" class="workbench-tab active" data-view="ledger" role="tab" aria-selected="true" title="Alt+1">
+                    <span class="tab-index">01</span>
+                    <span data-i18n="nav_ledger">Ledger &amp; Ops</span>
+                </button>
+                <button type="button" class="workbench-tab" data-view="budget" role="tab" aria-selected="false" title="Alt+2">
+                    <span class="tab-index">02</span>
+                    <span data-i18n="nav_budget">Budget &amp; Burn</span>
+                </button>
+                <button type="button" class="workbench-tab" data-view="treasury" role="tab" aria-selected="false" title="Alt+3">
+                    <span class="tab-index">03</span>
+                    <span data-i18n="nav_treasury">Treasury &amp; FIRE</span>
+                </button>
+                <button type="button" class="workbench-tab" data-view="forecast" role="tab" aria-selected="false" title="Alt+4">
+                    <span class="tab-index">04</span>
+                    <span data-i18n="nav_forecast">Forecast Lab</span>
+                </button>
+            </nav>
+
+            <div class="timeframe-controls">
+                <div class="timeframe-nav">
+                    <button type="button" id="btn-prev-timeframe" class="btn btn-outline btn-sm" aria-label="Previous month">
+                        <span class="icon-slot" data-icon="chevronLeft" data-icon-size="15"></span>
+                    </button>
+                    <span id="timeframe-label" class="timeframe-label">Current Month</span>
+                    <button type="button" id="btn-next-timeframe" class="btn btn-outline btn-sm" aria-label="Next month">
+                        <span class="icon-slot" data-icon="chevronRight" data-icon-size="15"></span>
+                    </button>
+                </div>
+                <div class="segmented-group" role="group" aria-label="Timeframe presets">
+                    <button type="button" class="segment-btn timeframe-btn active" data-timeframe="this_month" data-i18n="this_month" aria-pressed="true">This Month</button>
+                    <button type="button" class="segment-btn timeframe-btn" data-timeframe="last_30_days" data-i18n="last_30" aria-pressed="false">30 Days</button>
+                    <button type="button" class="segment-btn timeframe-btn" data-timeframe="all_time" data-i18n="all_time" aria-pressed="false">All Time</button>
+                </div>
+            </div>
+        </section>
+
+        <main id="main-workspace" class="main-workspace">
+            <!-- VIEW 01: LEDGER & OPERATIONS -->
+            <section class="workbench-view active" data-view-panel="ledger" role="tabpanel" aria-label="Ledger and operations">
+                <!-- Compact Quick-Entry Bar -->
+                <section class="panel window-box quick-entry-box" aria-label="Quick transaction entry">
+                    <div class="window-header">
+                        <h2 id="form-header-title" class="window-title" data-i18n="commit_transaction">Quick Entry</h2>
+                        <button type="button" id="btn-toggle-entry-details" class="btn btn-outline btn-sm" aria-expanded="false" aria-controls="entry-details-drawer">
+                            <span class="icon-slot" data-icon="paperclip" data-icon-size="13"></span>
+                            <span>Tags &amp; Receipt</span>
+                        </button>
+                    </div>
+                    <form id="transaction-form" class="quick-entry-form">
+                        <input type="hidden" id="edit-id" value="" />
+
+                        <div id="edit-banner" class="edit-banner" style="display: none;">
+                            <span class="edit-banner-text">
+                                <span class="icon-slot" data-icon="edit" data-icon-size="14"></span>
+                                <span>Editing existing transaction record</span>
+                            </span>
+                            <button type="button" id="btn-cancel-edit-banner" class="close-btn" aria-label="Cancel editing">
+                                <span class="icon-slot" data-icon="close" data-icon-size="14"></span>
+                            </button>
+                        </div>
+
+                        <div class="quick-entry-row">
+                            <div class="form-group qe-date">
+                                <label for="date" data-i18n="date">Date</label>
+                                <input type="date" id="date" required />
+                            </div>
+                            <div class="form-group qe-type">
+                                <label for="type" data-i18n="type">Type</label>
+                                <select id="type">
+                                    <option value="expense">Expense</option>
+                                    <option value="income">Income</option>
+                                </select>
+                            </div>
+                            <div class="form-group qe-desc">
+                                <label for="text" data-i18n="desc">Description</label>
+                                <input type="text" id="text" placeholder="e.g. Server Hosting" required autocomplete="off" />
+                            </div>
+                            <div class="form-group qe-cat">
+                                <label for="category" data-i18n="cat">Category</label>
+                                <select id="category">
+                                    <option value="Housing">Housing &amp; Utilities</option>
+                                    <option value="Software">Software &amp; Tech</option>
+                                    <option value="Food">Food &amp; Dining</option>
+                                    <option value="Transport">Transportation</option>
+                                    <option value="Investments">Investments</option>
+                                    <option value="Salary">Salary &amp; Wages</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+                            <div class="form-group qe-amt">
+                                <label for="amount" data-i18n="amt">Amount</label>
+                                <input type="number" id="amount" placeholder="0.00" step="0.01" min="0.01" required />
+                            </div>
+                            <div class="qe-submit">
+                                <button type="submit" id="btn-submit-tx" class="btn btn-primary" data-i18n="btn_commit">Commit</button>
+                                <button type="button" id="btn-cancel-edit" class="btn btn-outline" style="display: none;">Cancel</button>
+                            </div>
+                        </div>
+
+                        <div id="entry-details-drawer" class="entry-details-drawer">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="tags">Tags (space-separated)</label>
+                                    <input type="text" id="tags" placeholder="e.g. #tax #cloud #freelance" autocomplete="off" />
+                                </div>
+                                <div class="form-group">
+                                    <label for="receipt-file">Receipt / Invoice (Image)</label>
+                                    <div class="file-input-row">
+                                        <input type="file" id="receipt-file" accept="image/*" class="file-input" />
+                                        <button type="button" id="btn-clear-receipt" class="action-icon-btn delete" style="opacity: 1; display: none;" title="Remove attached receipt" aria-label="Remove attached receipt">
+                                            <span class="icon-slot" data-icon="close" data-icon-size="14"></span>
+                                        </button>
+                                    </div>
+                                    <input type="hidden" id="receipt-data" value="" />
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </section>
+
+                <!-- Ledger + Commitments Split -->
+                <div class="ledger-ops-grid">
+                    <section class="panel window-box" aria-label="Transaction ledger">
+                        <div class="window-header">
+                            <div class="header-right-group">
+                                <h2 class="window-title" data-i18n="ledger">Transaction Ledger</h2>
+                                <span id="ledger-count-badge" class="status-badge">0 entries</span>
+                            </div>
+                            <label for="search-filter" class="sr-only">Search ledger entries</label>
+                            <input type="text" id="search-filter" class="search-input" placeholder="Search entries..." data-i18n="search" />
+                        </div>
+                        <div class="ledger-filter-bar">
+                            <div class="segmented-group" role="group" aria-label="Filter by transaction type">
+                                <button type="button" class="segment-btn filter-btn active" data-type="all">All</button>
+                                <button type="button" class="segment-btn filter-btn" data-type="expense">Expenses</button>
+                                <button type="button" class="segment-btn filter-btn" data-type="income">Income</button>
+                            </div>
+                            <div class="ledger-filter-group">
+                                <select id="ledger-category-filter" class="ledger-select" aria-label="Filter by category">
+                                    <option value="all">All Categories</option>
+                                    <option value="Housing">Housing &amp; Utilities</option>
+                                    <option value="Software">Software &amp; Tech</option>
+                                    <option value="Food">Food &amp; Dining</option>
+                                    <option value="Transport">Transportation</option>
+                                    <option value="Investments">Investments</option>
+                                    <option value="Salary">Salary &amp; Wages</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                                <select id="ledger-sort" class="ledger-select" aria-label="Sort ledger">
+                                    <option value="date_desc">Newest First</option>
+                                    <option value="date_asc">Oldest First</option>
+                                    <option value="amount_desc">Highest Amount</option>
+                                    <option value="amount_asc">Lowest Amount</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="ledger-table-wrap">
+                            <table class="ledger-table">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Description &amp; Tags</th>
+                                        <th>Category</th>
+                                        <th class="num-col">Delta</th>
+                                        <th class="num-col">Balance</th>
+                                        <th class="act-col">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="list"></tbody>
+                            </table>
+                        </div>
+                    </section>
+
+                    <!-- Recurring Subscriptions & Split/IOUs -->
+                    <section class="panel window-box" aria-label="Subscriptions and IOUs">
+                        <div class="window-header">
+                            <div class="panel-tab-group" role="tablist">
+                                <button type="button" class="panel-tab-btn active" id="tab-btn-subs" role="tab" aria-selected="true">
+                                    <span class="icon-slot" data-icon="repeat" data-icon-size="14"></span>
+                                    <span data-i18n="subscriptions">Subscriptions &amp; SaaS</span>
+                                </button>
+                                <button type="button" class="panel-tab-btn" id="tab-btn-ious" role="tab" aria-selected="false">
+                                    <span class="icon-slot" data-icon="users" data-icon-size="14"></span>
+                                    <span data-i18n="ious">Split &amp; IOUs</span>
+                                </button>
+                            </div>
+                            <div class="header-right-group">
+                                <span id="sub-burn-badge" class="status-badge">Burn: $0.00/mo</span>
+                                <span id="iou-summary-badge" class="status-badge" style="display: none;">Net: +$0.00</span>
+                                <button type="button" id="btn-toggle-sub-form" class="btn btn-outline btn-sm">+ Add Sub</button>
+                                <button type="button" id="btn-toggle-iou-form" class="btn btn-outline btn-sm" style="display: none;">+ Add IOU</button>
+                            </div>
+                        </div>
+
+                        <div id="subs-view">
+                            <div id="sub-form-drawer" class="sub-form-drawer">
+                                <form id="subscription-form">
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="sub-name">Subscription Name</label>
+                                            <input type="text" id="sub-name" placeholder="e.g. GitHub Copilot, VPS" required />
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="sub-amount">Price</label>
+                                            <input type="number" id="sub-amount" placeholder="10.00" step="0.01" min="0.01" required />
+                                        </div>
+                                    </div>
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="sub-cycle">Billing Cycle</label>
+                                            <select id="sub-cycle">
+                                                <option value="monthly">Monthly</option>
+                                                <option value="yearly">Yearly</option>
+                                            </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="sub-category">Category</label>
+                                            <select id="sub-category">
+                                                <option value="Software">Software &amp; Tech</option>
+                                                <option value="Housing">Housing &amp; Utilities</option>
+                                                <option value="Other">Other</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="form-actions-row">
+                                        <button type="submit" class="btn btn-primary">Save Subscription</button>
+                                        <button type="button" id="btn-cancel-sub" class="btn btn-outline">Cancel</button>
+                                    </div>
+                                </form>
+                            </div>
+                            <ul id="sub-list" class="sub-list"></ul>
+                        </div>
+
+                        <div id="ious-view" style="display: none;">
+                            <div id="iou-form-drawer" class="sub-form-drawer">
+                                <form id="iou-form">
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="iou-person">Person / Group</label>
+                                            <input type="text" id="iou-person" placeholder="e.g. Alice, Bob" required />
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="iou-amount">Amount</label>
+                                            <input type="number" id="iou-amount" placeholder="45.00" step="0.01" min="0.01" required />
+                                        </div>
+                                    </div>
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="iou-direction">Status</label>
+                                            <select id="iou-direction">
+                                                <option value="receivable">They owe me (Receivable)</option>
+                                                <option value="payable">I owe them (Payable)</option>
+                                            </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="iou-desc">Reason / Note</label>
+                                            <input type="text" id="iou-desc" placeholder="e.g. Dinner, AWS Cloud split" required />
+                                        </div>
+                                    </div>
+                                    <div class="form-actions-row">
+                                        <button type="submit" class="btn btn-primary">Save IOU Record</button>
+                                        <button type="button" id="btn-cancel-iou" class="btn btn-outline">Cancel</button>
+                                    </div>
+                                </form>
+                            </div>
+                            <ul id="iou-list" class="sub-list"></ul>
+                        </div>
+                    </section>
+                </div>
+            </section>
+
+            <!-- VIEW 02: BUDGET & BURN -->
+            <section class="workbench-view" data-view-panel="budget" role="tabpanel" aria-label="Budget and burn analytics" hidden>
+                <!-- 4-Point Financial Ratios Strip -->
+                <section class="window-box" aria-label="Freelancer treasury ratios">
+                    <div class="window-header">
+                        <h2 class="window-title">
+                            <span class="icon-slot" data-icon="activity" data-icon-size="16"></span>
+                            <span>Treasury &amp; Operating Ratios</span>
+                        </h2>
+                        <span class="status-badge">Live Accounting</span>
+                    </div>
+                    <div class="section-body">
+                        <div class="submetrics-grid four-col no-margin">
+                            <div class="submetric-card">
+                                <span class="submetric-label">Savings Rate</span>
+                                <h3 id="ratio-savings-rate" class="submetric-val">N/A</h3>
+                            </div>
+                            <div class="submetric-card">
+                                <span class="submetric-label">Fixed Burn Ratio (SaaS)</span>
+                                <h3 id="ratio-fixed-burn" class="submetric-val">0.0%</h3>
+                            </div>
+                            <div class="submetric-card">
+                                <span class="submetric-label">Tax Reserve Coverage</span>
+                                <h3 id="ratio-tax-coverage" class="submetric-val">No Tax Due</h3>
+                            </div>
+                            <div class="submetric-card">
+                                <span class="submetric-label">Survival Runway</span>
+                                <h3 id="ratio-survival-runway" class="submetric-val">--</h3>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Budget Pace Chart & Ranked Category Breakdown -->
+                <div class="two-col-grid">
+                    <section class="panel window-box">
+                        <div class="window-header">
+                            <h2 id="chart-main-title" class="window-title">Cumulative Spend vs. Linear Budget Pace</h2>
+                            <div class="chart-toggle-group">
+                                <button type="button" class="chart-tab-btn active" data-chart="pace">Pace</button>
+                                <button type="button" class="chart-tab-btn" data-chart="monthly">6-Month</button>
+                            </div>
+                        </div>
+                        <div class="chart-wrapper">
+                            <canvas id="trendChart"></canvas>
+                        </div>
+                    </section>
+
+                    <section class="panel window-box">
+                        <div class="window-header">
+                            <h2 class="window-title" data-i18n="breakdown">Category Allocation Breakdown</h2>
+                        </div>
+                        <div class="section-body">
+                            <div id="category-breakdown-list" class="alloc-list"></div>
+                        </div>
+                    </section>
+                </div>
+
+                <!-- Category Budget Envelopes -->
+                <section class="envelopes-section window-box">
+                    <div class="window-header">
+                        <h2 class="window-title">
+                            <span class="icon-slot" data-icon="layers" data-icon-size="16"></span>
+                            <span data-i18n="budget_envelopes">Category Budget Envelopes</span>
+                        </h2>
+                        <button type="button" id="btn-adjust-envelopes" class="btn btn-outline btn-sm">
+                            <span class="icon-slot" data-icon="sliders" data-icon-size="14"></span>
+                            <span>Adjust Limits</span>
+                        </button>
+                    </div>
+                    <div class="section-body">
+                        <div id="envelopes-grid" class="envelopes-grid"></div>
+                    </div>
+                </section>
+
+                <!-- Budget & Burn Insights -->
+                <section class="advisor-section window-box">
+                    <div class="window-header">
+                        <h2 class="window-title">
+                            <span class="icon-slot" data-icon="activity" data-icon-size="16"></span>
+                            <span data-i18n="advisor_title">Budget &amp; Burn Insights</span>
+                        </h2>
+                        <span id="budget-status-tag" class="status-badge">Budget: 0.00</span>
+                    </div>
+                    <div class="section-body">
+                        <div class="budget-progress-container">
+                            <div class="budget-info">
+                                <span data-i18n="budget_utilization">Monthly Budget Utilization</span>
+                                <span id="budget-percentage-text">0%</span>
+                            </div>
+                            <div class="progress-bar-bg">
+                                <div id="budget-progress-bar" class="progress-bar-fill" style="width: 0%;"></div>
+                            </div>
+                        </div>
+                        <div id="advisor-cards" class="advisor-cards-grid"></div>
+                    </div>
+                </section>
+            </section>
+
+            <!-- VIEW 03: TREASURY, TAX & FIRE -->
+            <section class="workbench-view" data-view-panel="treasury" role="tabpanel" aria-label="Treasury, tax, and FIRE" hidden>
+                <!-- Live Market Assets & Holdings -->
+                <section class="market-section window-box">
+                    <div class="window-header">
+                        <h2 class="window-title">
+                            <span class="icon-slot" data-icon="trendUp" data-icon-size="16"></span>
+                            <span data-i18n="assets">Live Market Assets &amp; Holdings</span>
+                        </h2>
+                        <div class="header-right-group">
+                            <span id="market-status-badge" class="status-badge status-syncing">
+                                <span class="status-dot"></span>
+                                <span>SYNCING</span>
+                            </span>
+                            <button type="button" id="btn-sync-markets" class="btn btn-outline btn-sm">
+                                <span class="icon-slot" data-icon="refresh" data-icon-size="14"></span>
+                                <span data-i18n="btn_sync">Sync</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="market-ticker-container">
+                        <div class="market-card" id="asset-PAXG">
+                            <span class="asset-name">Gold (PAXG)</span>
+                            <p class="asset-price">Syncing...</p>
+                            <span class="asset-change">--</span>
+                            <span id="holding-val-PAXG" class="asset-holding">0 PAXG held</span>
+                        </div>
+                        <div class="market-card" id="asset-BTC">
+                            <span class="asset-name">Bitcoin (BTC)</span>
+                            <p class="asset-price">Syncing...</p>
+                            <span class="asset-change">--</span>
+                            <span id="holding-val-BTC" class="asset-holding">0 BTC held</span>
+                        </div>
+                        <div class="market-card" id="asset-ETH">
+                            <span class="asset-name">Ethereum (ETH)</span>
+                            <p class="asset-price">Syncing...</p>
+                            <span class="asset-change">--</span>
+                            <span id="holding-val-ETH" class="asset-holding">0 ETH held</span>
+                        </div>
+                        <div class="market-card" id="asset-SOL">
+                            <span class="asset-name">Solana (SOL)</span>
+                            <p class="asset-price">Syncing...</p>
+                            <span class="asset-change">--</span>
+                            <span id="holding-val-SOL" class="asset-holding">0 SOL held</span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Freelancer Tax Reserve & FIRE Progress -->
+                <section class="fire-section window-box">
+                    <div class="window-header">
+                        <h2 class="window-title">
+                            <span class="icon-slot" data-icon="flame" data-icon-size="16"></span>
+                            <span data-i18n="fire_tracker">FIRE &amp; Long-Term Runway</span>
+                        </h2>
+                        <div class="tax-rate-control">
+                            <label for="tax-rate">Tax Rate:</label>
+                            <select id="tax-rate" class="ledger-select">
+                                <option value="0.15">15%</option>
+                                <option value="0.20">20%</option>
+                                <option value="0.25" selected>25%</option>
+                                <option value="0.30">30%</option>
+                                <option value="0.35">35%</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="section-body">
+                        <div class="submetrics-grid four-col">
+                            <div class="submetric-card">
+                                <span class="submetric-label">FIRE Target (25x Burn)</span>
+                                <h3 id="fire-target" class="submetric-val">$0</h3>
+                            </div>
+                            <div class="submetric-card">
+                                <span class="submetric-label">FIRE Progress</span>
+                                <h3 id="fire-progress" class="submetric-val text-green">0.0%</h3>
+                            </div>
+                            <div class="submetric-card">
+                                <span class="submetric-label">Estimated Freedom Year</span>
+                                <h3 id="fire-year" class="submetric-val text-accent">--</h3>
+                            </div>
+                            <div class="submetric-card">
+                                <span class="submetric-label">Zero-Income Runway</span>
+                                <h3 id="apocalypse-runway" class="submetric-val text-red">--</h3>
+                            </div>
+                        </div>
+
+                        <div class="fire-progress-bar-container">
+                            <div class="progress-bar-bg">
+                                <div id="fire-progress-bar" class="progress-bar-fill" style="width: 0%;"></div>
+                            </div>
+                        </div>
+
+                        <div class="submetrics-grid two-col">
+                            <div class="submetric-card">
+                                <span class="submetric-label">Tax Locked Reserve</span>
+                                <h3 id="tax-locked" class="submetric-val text-red">$0</h3>
+                            </div>
+                            <div class="submetric-card">
+                                <span class="submetric-label">True Safe-to-Spend Cash</span>
+                                <h3 id="safe-to-spend" class="submetric-val text-green">$0</h3>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Vaults & Debt Payoff -->
+                <div class="two-col-grid">
+                    <section class="vaults-section window-box">
+                        <div class="window-header">
+                            <h2 class="window-title">
+                                <span class="icon-slot" data-icon="target" data-icon-size="16"></span>
+                                <span data-i18n="savings_vaults">Savings Goal Vaults</span>
+                            </h2>
+                            <button type="button" id="btn-add-vault" class="btn btn-outline btn-sm">+ New Vault</button>
+                        </div>
+                        <div class="section-body">
+                            <div id="vault-form-drawer" class="sub-form-drawer">
+                                <form id="vault-form">
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="vault-name">Vault Name</label>
+                                            <input type="text" id="vault-name" placeholder="e.g. M4 MacBook Pro" required />
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="vault-target">Target Amount</label>
+                                            <input type="number" id="vault-target" placeholder="3500.00" step="10" min="1" required />
+                                        </div>
+                                    </div>
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="vault-saved">Amount Saved</label>
+                                            <input type="number" id="vault-saved" placeholder="0.00" step="1" min="0" />
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="vault-icon">Category Icon</label>
+                                            <select id="vault-icon">
+                                                <option value="laptop">Hardware</option>
+                                                <option value="shield">Emergency</option>
+                                                <option value="compass">Travel</option>
+                                                <option value="book">Education</option>
+                                                <option value="home">Home</option>
+                                                <option value="truck">Vehicle</option>
+                                                <option value="target">General</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="form-actions-row">
+                                        <button type="submit" class="btn btn-primary">Create Vault</button>
+                                        <button type="button" id="btn-cancel-vault" class="btn btn-outline">Cancel</button>
+                                    </div>
+                                </form>
+                            </div>
+                            <div id="vaults-grid" class="vaults-grid"></div>
+                        </div>
+                    </section>
+
+                    <section class="debts-section window-box">
+                        <div class="window-header">
+                            <h2 class="window-title">
+                                <span class="icon-slot" data-icon="creditCard" data-icon-size="16"></span>
+                                <span data-i18n="debt_tracker">Debt Payoff Tracker</span>
+                            </h2>
+                            <div class="header-right-group">
+                                <span id="total-debt-badge" class="status-badge badge-negative">Total: $0</span>
+                                <button type="button" id="btn-add-debt" class="btn btn-outline btn-sm">+ Add Debt</button>
+                            </div>
+                        </div>
+                        <div class="section-body">
+                            <div id="debt-form-drawer" class="sub-form-drawer">
+                                <form id="debt-form">
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="debt-name">Debt Name</label>
+                                            <input type="text" id="debt-name" placeholder="e.g. Student Loan" required />
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="debt-balance">Current Balance</label>
+                                            <input type="number" id="debt-balance" placeholder="5000.00" step="10" min="0" required />
+                                        </div>
+                                    </div>
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="debt-rate">Annual Interest Rate (%)</label>
+                                            <input type="number" id="debt-rate" placeholder="5.0" step="0.1" min="0" />
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="debt-min-payment">Minimum Monthly Payment</label>
+                                            <input type="number" id="debt-min-payment" placeholder="150.00" step="5" min="0" required />
+                                        </div>
+                                    </div>
+                                    <div class="form-actions-row">
+                                        <button type="submit" class="btn btn-primary">Add Debt</button>
+                                        <button type="button" id="btn-cancel-debt" class="btn btn-outline">Cancel</button>
+                                    </div>
+                                </form>
+                            </div>
+                            <div class="segmented-group debt-strategy-group" role="group" aria-label="Debt payoff strategy">
+                                <button type="button" class="segment-btn debt-strategy-btn active" data-strategy="snowball">Snowball (Smallest First)</button>
+                                <button type="button" class="segment-btn debt-strategy-btn" data-strategy="avalanche">Avalanche (Highest Rate)</button>
+                            </div>
+                            <div id="debt-summary-metrics" class="submetrics-grid three-col"></div>
+                            <ul id="debt-list" class="sub-list"></ul>
+                        </div>
+                    </section>
+                </div>
+
+                <!-- Cashflow Activity Heatmap -->
+                <section class="heatmap-section window-box">
+                    <div class="window-header">
+                        <h2 class="window-title">
+                            <span class="icon-slot" data-icon="calendar" data-icon-size="16"></span>
+                            <span data-i18n="cashflow_heatmap">Cashflow Activity Heatmap</span>
+                        </h2>
+                        <span id="heatmap-year-label" class="status-badge">2026</span>
+                    </div>
+                    <div class="section-body heatmap-scroll">
+                        <div id="heatmap-grid" class="heatmap-grid"></div>
+                        <div id="heatmap-tooltip" class="heatmap-tooltip" style="display: none;"></div>
+                        <div class="heatmap-legend">
+                            <span>Less</span>
+                            <span class="heatmap-legend-cell legend-empty"></span>
+                            <span class="heatmap-legend-cell legend-inc-1"></span>
+                            <span class="heatmap-legend-cell legend-inc-2"></span>
+                            <span class="heatmap-legend-cell legend-inc-3"></span>
+                            <span>More (Income)</span>
+                            <span class="legend-divider">|</span>
+                            <span class="heatmap-legend-cell legend-exp-1"></span>
+                            <span class="heatmap-legend-cell legend-exp-2"></span>
+                            <span class="heatmap-legend-cell legend-exp-3"></span>
+                            <span>More (Expense)</span>
+                        </div>
+                    </div>
+                </section>
+            </section>
+
+            <!-- VIEW 04: FORECAST LAB -->
+            <section class="workbench-view" data-view-panel="forecast" role="tabpanel" aria-label="Forecast and compounding lab" hidden>
+                <section class="panel window-box">
+                    <div class="window-header">
+                        <h2 class="window-title">
+                            <span class="icon-slot" data-icon="sliders" data-icon-size="16"></span>
+                            <span data-i18n="forecast_sandbox">Forecast &amp; Compounding Lab</span>
+                        </h2>
+                        <div class="header-right-group">
+                            <div class="segmented-group" role="group" aria-label="Forecast horizon">
+                                <button type="button" class="segment-btn horizon-btn" data-years="1">1Y</button>
+                                <button type="button" class="segment-btn horizon-btn active" data-years="3">3Y</button>
+                                <button type="button" class="segment-btn horizon-btn" data-years="5">5Y</button>
+                                <button type="button" class="segment-btn horizon-btn" data-years="10">10Y</button>
+                            </div>
+                            <button type="button" id="btn-reset-simulation" class="btn btn-outline btn-sm">
+                                <span class="icon-slot" data-icon="rotateCcw" data-icon-size="13"></span>
+                                <span>Reset</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="section-body forecast-grid">
+                        <div class="forecast-controls-col">
+                            <div class="sandbox-controls">
+                                <div class="sandbox-control-group">
+                                    <div class="slider-header">
+                                        <label for="sim-income-shift">Monthly Income Delta</label>
+                                        <span id="sim-income-shift-val" class="slider-val text-green">+$0/mo</span>
+                                    </div>
+                                    <input type="range" id="sim-income-shift" min="-2000" max="5000" step="50" value="0" class="slider-input" />
+                                </div>
+                                <div class="sandbox-control-group">
+                                    <div class="slider-header">
+                                        <label for="sim-expense-shift">Monthly Expense Delta</label>
+                                        <span id="sim-expense-shift-val" class="slider-val text-accent">$0/mo</span>
+                                    </div>
+                                    <input type="range" id="sim-expense-shift" min="-1500" max="1500" step="50" value="0" class="slider-input" />
+                                </div>
+                                <div class="sandbox-control-group">
+                                    <div class="slider-header">
+                                        <label for="sim-annual-growth">Investment Annual Return (CAGR)</label>
+                                        <span id="sim-annual-growth-val" class="slider-val text-accent">7% / yr</span>
+                                    </div>
+                                    <input type="range" id="sim-annual-growth" min="0" max="20" step="1" value="7" class="slider-input" />
+                                </div>
+                            </div>
+
+                            <div class="submetrics-grid two-col">
+                                <div class="submetric-card">
+                                    <span class="submetric-label">Simulated Monthly Net</span>
+                                    <h3 id="sim-new-net" class="submetric-val sim-val text-green">+$0.00</h3>
+                                </div>
+                                <div class="submetric-card">
+                                    <span class="submetric-label">Simulated Runway</span>
+                                    <h3 id="sim-runway" class="submetric-val sim-val text-accent">--</h3>
+                                </div>
+                                <div class="submetric-card">
+                                    <span class="submetric-label">1-Year Wealth</span>
+                                    <h3 id="sim-1yr" class="submetric-val sim-val text-accent">$0.00</h3>
+                                </div>
+                                <div class="submetric-card">
+                                    <span id="sim-horizon-label" class="submetric-label">3-Year Projected Wealth</span>
+                                    <h3 id="sim-horizon-val" class="submetric-val sim-val text-green">$0.00</h3>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="forecast-chart-col">
+                            <div class="chart-wrapper forecast-chart-wrapper">
+                                <canvas id="forecastChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </section>
+        </main>
+
+        <footer class="app-footer">
+            <span>PFCC V2 | Zero-Dependency Personal Treasury Console</span>
+            <span>All records persist locally in browser storage</span>
+        </footer>
+    </div>
+
+    <div id="chart-tooltip" class="heatmap-tooltip" style="display: none;"></div>
+
+    <!-- Command Palette Modal (Ctrl+K) -->
+    <div id="cli-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="cli-title">
+        <div class="cmd-palette-box">
+            <h2 id="cli-title" class="sr-only">Command Palette</h2>
+            <div class="cmd-input-row">
+                <span class="cmd-prefix" aria-hidden="true">&gt;_</span>
+                <label for="cli-input" class="sr-only">Command input</label>
+                <input type="text" id="cli-input" class="cmd-input" placeholder="Type a command (e.g. /add 25 VPS Software) or /help..." autocomplete="off" />
+                <button type="button" id="btn-close-cli" class="close-btn" aria-label="Close command palette">
+                    <span class="icon-slot" data-icon="close" data-icon-size="16"></span>
+                </button>
+            </div>
+            <div id="cli-hints" class="cmd-hints">
+                <p class="cmd-section-title">Available Quick Commands</p>
+                <button type="button" class="cmd-item" data-cmd="/add 50 VPS Server Software"><span class="cmd-code">/add &lt;amt&gt; &lt;desc&gt; [cat]</span><span class="cmd-desc">Add expense</span></button>
+                <button type="button" class="cmd-item" data-cmd="/income 3500 Freelance Salary"><span class="cmd-code">/income &lt;amt&gt; &lt;desc&gt; [cat]</span><span class="cmd-desc">Add income</span></button>
+                <button type="button" class="cmd-item" data-cmd="/view budget"><span class="cmd-code">/view &lt;ledger|budget|treasury|forecast&gt;</span><span class="cmd-desc">Switch workbench view</span></button>
+                <button type="button" class="cmd-item" data-cmd="/vault M4_MacBook 3500 1200"><span class="cmd-code">/vault &lt;name&gt; &lt;target&gt; [saved]</span><span class="cmd-desc">Create savings vault</span></button>
+                <button type="button" class="cmd-item" data-cmd="/debt StudentLoan 5000 150 4.5"><span class="cmd-code">/debt &lt;name&gt; &lt;bal&gt; [min] [apr]</span><span class="cmd-desc">Add debt liability</span></button>
+                <button type="button" class="cmd-item" data-cmd="/rule AWS Software"><span class="cmd-code">/rule &lt;keyword&gt; [category]</span><span class="cmd-desc">Add auto-categorization rule</span></button>
+                <button type="button" class="cmd-item" data-cmd="/theme crimson"><span class="cmd-code">/theme &lt;name&gt;</span><span class="cmd-desc">Switch OS theme</span></button>
+                <button type="button" class="cmd-item" data-cmd="/budget 2500"><span class="cmd-code">/budget &lt;amt&gt;</span><span class="cmd-desc">Set monthly budget</span></button>
+                <button type="button" class="cmd-item" data-cmd="/goal 500"><span class="cmd-code">/goal &lt;amt&gt;</span><span class="cmd-desc">Set savings goal</span></button>
+                <button type="button" class="cmd-item" data-cmd="/holding BTC 0.25"><span class="cmd-code">/holding &lt;asset&gt; &lt;qty&gt;</span><span class="cmd-desc">Set crypto or gold holding</span></button>
+                <button type="button" class="cmd-item" data-cmd="/iou Alice 45 Dinner"><span class="cmd-code">/iou &lt;person&gt; &lt;amt&gt; [note]</span><span class="cmd-desc">Add split expense IOU</span></button>
+                <button type="button" class="cmd-item" data-cmd="/fire"><span class="cmd-code">/fire</span><span class="cmd-desc">Open Treasury &amp; FIRE view</span></button>
+                <button type="button" class="cmd-item" data-cmd="/forecast"><span class="cmd-code">/forecast</span><span class="cmd-desc">Open Forecast Lab view</span></button>
+                <button type="button" class="cmd-item" data-cmd="/privacy"><span class="cmd-code">/privacy</span><span class="cmd-desc">Toggle privacy blur</span></button>
+                <button type="button" class="cmd-item" data-cmd="/sound"><span class="cmd-code">/sound</span><span class="cmd-desc">Toggle audio synth FX</span></button>
+                <button type="button" class="cmd-item" data-cmd="/import"><span class="cmd-code">/import</span><span class="cmd-desc">Open bank CSV importer</span></button>
+                <button type="button" class="cmd-item" data-cmd="/export"><span class="cmd-code">/export</span><span class="cmd-desc">Export ledger CSV</span></button>
+                <button type="button" class="cmd-item" data-cmd="/help"><span class="cmd-code">/help</span><span class="cmd-desc">Show command manual</span></button>
+            </div>
+            <div id="cli-feedback" class="cmd-feedback">Press Enter to execute or Esc to dismiss.</div>
+        </div>
+    </div>
+
+    <!-- Tabbed OS Configuration Modal -->
+    <div id="settings-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+        <div class="modal-content window-box">
+            <div class="window-header">
+                <h2 id="modal-title" class="window-title" data-i18n="config_title">OS Configuration Center</h2>
+                <button type="button" id="btn-close-settings" class="close-btn" aria-label="Close configuration">
+                    <span class="icon-slot" data-icon="close" data-icon-size="16"></span>
+                </button>
+            </div>
+
+            <div class="settings-tabs" role="tablist">
+                <button type="button" class="tab-btn active" data-tab="general" role="tab" aria-selected="true">
+                    <span class="icon-slot" data-icon="globe" data-icon-size="14"></span>
+                    <span data-i18n="tab_general">General</span>
+                </button>
+                <button type="button" class="tab-btn" data-tab="themes" role="tab" aria-selected="false">
+                    <span class="icon-slot" data-icon="palette" data-icon-size="14"></span>
+                    <span data-i18n="tab_themes">Themes</span>
+                </button>
+                <button type="button" class="tab-btn" data-tab="finance" role="tab" aria-selected="false">
+                    <span class="icon-slot" data-icon="trendUp" data-icon-size="14"></span>
+                    <span data-i18n="tab_finance">Finance</span>
+                </button>
+                <button type="button" class="tab-btn" data-tab="data" role="tab" aria-selected="false">
+                    <span class="icon-slot" data-icon="database" data-icon-size="14"></span>
+                    <span data-i18n="tab_data">Data</span>
+                </button>
+                <button type="button" class="tab-btn" data-tab="rules" role="tab" aria-selected="false">
+                    <span class="icon-slot" data-icon="cpu" data-icon-size="14"></span>
+                    <span data-i18n="tab_rules">Rules</span>
+                </button>
+            </div>
+
+            <div class="modal-body">
+                <div class="tab-content active" id="tab-general" role="tabpanel">
+                    <h3 class="config-subtitle" data-i18n="sub_loc">Localization &amp; Identity</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="setting-name" data-i18n="lbl_name">User Profile Name</label>
+                            <input type="text" id="setting-name" />
+                        </div>
+                        <div class="form-group">
+                            <label for="setting-language" data-i18n="lbl_lang">System Language</label>
+                            <select id="setting-language">
+                                <option value="en">English (EN)</option>
+                                <option value="es">Español (ES)</option>
+                                <option value="id">Bahasa Indonesia (ID)</option>
+                                <option value="fr">Français (FR)</option>
+                                <option value="de">Deutsch (DE)</option>
+                                <option value="ja">日本語 (JA)</option>
+                                <option value="zh">中文 (ZH)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="setting-currency" data-i18n="lbl_currency">Primary Fiat Currency</label>
+                            <select id="setting-currency">
+                                <optgroup label="Major Fiat">
+                                    <option value="USD">USD - US Dollar</option>
+                                    <option value="EUR">EUR - Euro</option>
+                                    <option value="GBP">GBP - British Pound</option>
+                                    <option value="JPY">JPY - Japanese Yen</option>
+                                </optgroup>
+                                <optgroup label="Global">
+                                    <option value="CAD">CAD - Canadian Dollar</option>
+                                    <option value="AUD">AUD - Australian Dollar</option>
+                                    <option value="IDR">IDR - Indonesian Rupiah</option>
+                                    <option value="INR">INR - Indian Rupee</option>
+                                    <option value="CNY">CNY - Chinese Yuan</option>
+                                    <option value="RUB">RUB - Russian Ruble</option>
+                                    <option value="BRL">BRL - Brazilian Real</option>
+                                    <option value="MXN">MXN - Mexican Peso</option>
+                                    <option value="CHF">CHF - Swiss Franc</option>
+                                    <option value="ZAR">ZAR - S. African Rand</option>
+                                </optgroup>
+                            </select>
+                        </div>
+                    </div>
+                    <h3 class="config-subtitle spaced-subtitle">Audio &amp; Feedback</h3>
+                    <div class="checkbox-row">
+                        <input type="checkbox" id="setting-sound-enabled" checked />
+                        <label for="setting-sound-enabled">Enable Native Web Audio Synthesizer Sound FX</label>
+                    </div>
+                </div>
+
+                <div class="tab-content" id="tab-themes" role="tabpanel">
+                    <h3 class="config-subtitle" data-i18n="sub_themes">Theme Presets</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="setting-preset-theme" data-i18n="lbl_theme">Select Master Theme</label>
+                            <select id="setting-preset-theme">
+                                <option value="obsidian">Obsidian Chrome (Onyx &amp; Blue Slate)</option>
+                                <option value="crimson">Classic Crimson (Carbon &amp; Tan)</option>
+                                <option value="tundra">Electric Tundra (Prussian &amp; Cyan)</option>
+                                <option value="neonpetal">Neon Petal (Carbon &amp; Chartreuse)</option>
+                                <option value="alabaster">Alabaster Daylight (Light Mode)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <h3 class="config-subtitle spaced-subtitle" data-i18n="sub_manual">Manual Overrides</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="setting-font" data-i18n="lbl_typography">Typography</label>
+                            <select id="setting-font">
+                                <option value="'JetBrains Mono', monospace">JetBrains Mono</option>
+                                <option value="'Fira Code', monospace">Fira Code</option>
+                                <option value="ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace">System Monospace</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="setting-radius" data-i18n="lbl_radius">Corner Radius</label>
+                            <select id="setting-radius">
+                                <option value="0px">Sharp (0px)</option>
+                                <option value="4px">Crisp (4px)</option>
+                                <option value="6px">Balanced (6px)</option>
+                                <option value="8px">Soft (8px)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="setting-anim-speed" data-i18n="lbl_anim_speed">Transition Speed</label>
+                            <select id="setting-anim-speed">
+                                <option value="0.12s">Snappy (120ms)</option>
+                                <option value="0.16s">Standard (160ms)</option>
+                                <option value="0.25s">Relaxed (250ms)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tab-content" id="tab-finance" role="tabpanel">
+                    <h3 class="config-subtitle" data-i18n="sub_wealth">Wealth Targets</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="setting-budget" data-i18n="lbl_budget">Monthly Overall Budget</label>
+                            <input type="number" id="setting-budget" placeholder="2000.00" step="50" min="0" />
+                        </div>
+                        <div class="form-group">
+                            <label for="setting-savings-goal" data-i18n="lbl_goal">Monthly Savings Target</label>
+                            <input type="number" id="setting-savings-goal" placeholder="500.00" step="50" min="0" />
+                        </div>
+                    </div>
+
+                    <h3 class="config-subtitle spaced-subtitle">Category Budget Limits</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="budget-cat-Software">Software &amp; Tech Limit</label>
+                            <input type="number" id="budget-cat-Software" placeholder="e.g. 150.00" step="10" min="0" />
+                        </div>
+                        <div class="form-group">
+                            <label for="budget-cat-Food">Food &amp; Dining Limit</label>
+                            <input type="number" id="budget-cat-Food" placeholder="e.g. 400.00" step="10" min="0" />
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="budget-cat-Housing">Housing &amp; Utilities Limit</label>
+                            <input type="number" id="budget-cat-Housing" placeholder="e.g. 1000.00" step="20" min="0" />
+                        </div>
+                        <div class="form-group">
+                            <label for="budget-cat-Transport">Transportation Limit</label>
+                            <input type="number" id="budget-cat-Transport" placeholder="e.g. 150.00" step="10" min="0" />
+                        </div>
+                    </div>
+
+                    <h3 class="config-subtitle spaced-subtitle">Crypto &amp; Metals Portfolio Holdings</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="holding-btc">Bitcoin (BTC) Qty</label>
+                            <input type="number" id="holding-btc" placeholder="0.00" step="0.0001" min="0" />
+                        </div>
+                        <div class="form-group">
+                            <label for="holding-eth">Ethereum (ETH) Qty</label>
+                            <input type="number" id="holding-eth" placeholder="0.00" step="0.001" min="0" />
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="holding-sol">Solana (SOL) Qty</label>
+                            <input type="number" id="holding-sol" placeholder="0.00" step="0.01" min="0" />
+                        </div>
+                        <div class="form-group">
+                            <label for="holding-paxg">Gold (PAXG) Qty</label>
+                            <input type="number" id="holding-paxg" placeholder="0.00" step="0.01" min="0" />
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tab-content" id="tab-data" role="tabpanel">
+                    <h3 class="config-subtitle" data-i18n="sub_data">Database Control</h3>
+                    <div class="form-row">
+                        <button id="btn-backup" type="button" class="btn btn-outline" data-i18n="btn_backup">Backup Database (JSON)</button>
+                        <label for="btn-restore" class="btn btn-outline file-label-btn">
+                            <span data-i18n="btn_restore">Restore Database (JSON)</span>
+                            <input type="file" id="btn-restore" accept=".json" class="sr-only" />
+                        </label>
+                    </div>
+                    <button id="btn-wipe" type="button" class="btn btn-danger full-width-btn" data-i18n="btn_wipe">Purge All Data</button>
+                </div>
+
+                <div class="tab-content" id="tab-rules" role="tabpanel">
+                    <h3 class="config-subtitle">Auto-Categorization Rules</h3>
+                    <p class="helper-copy">Automatically categorize and tag incoming transactions by description keywords or amount thresholds.</p>
+                    <div id="rules-form-area">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="rule-keywords">If Description Contains (comma-separated)</label>
+                                <input type="text" id="rule-keywords" placeholder="e.g. AWS, DigitalOcean, Vercel" />
+                            </div>
+                            <div class="form-group">
+                                <label for="rule-amount-threshold">OR Amount Greater Than</label>
+                                <input type="number" id="rule-amount-threshold" placeholder="e.g. 500" step="10" min="0" />
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="rule-assign-category">Assign Category</label>
+                                <select id="rule-assign-category">
+                                    <option value="">Keep original</option>
+                                    <option value="Software">Software &amp; Tech</option>
+                                    <option value="Housing">Housing &amp; Utilities</option>
+                                    <option value="Food">Food &amp; Dining</option>
+                                    <option value="Transport">Transportation</option>
+                                    <option value="Investments">Investments</option>
+                                    <option value="Salary">Salary &amp; Wages</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="rule-assign-tags">Auto-Tag</label>
+                                <input type="text" id="rule-assign-tags" placeholder="e.g. #devops #cloud" />
+                            </div>
+                        </div>
+                        <button type="button" id="btn-add-rule" class="btn btn-primary btn-inline-auto">+ Add Rule</button>
+                    </div>
+                    <ul id="rules-list" class="sub-list rules-list-box"></ul>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button id="btn-save-settings" type="button" class="btn btn-primary" data-i18n="btn_save_settings">Save &amp; Apply</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bank Statement & CSV Importer Modal -->
+    <div id="import-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="import-title">
+        <div class="modal-content window-box modal-wide">
+            <div class="window-header">
+                <h2 id="import-title" class="window-title">
+                    <span class="icon-slot" data-icon="upload" data-icon-size="16"></span>
+                    <span>Bank Statement &amp; CSV Importer</span>
+                </h2>
+                <button type="button" id="btn-close-import" class="close-btn" aria-label="Close CSV Importer">
+                    <span class="icon-slot" data-icon="close" data-icon-size="16"></span>
+                </button>
+            </div>
+            <div class="modal-body section-body">
+                <div id="import-dropzone" class="dropzone">
+                    <span class="dropzone-icon icon-slot" data-icon="folder" data-icon-size="28"></span>
+                    <p class="dropzone-title">Drag and drop your bank statement or ledger CSV here</p>
+                    <p class="dropzone-sub">or browse files on your computer</p>
+                    <label for="csv-file-input" class="btn btn-outline btn-sm file-label-btn">Browse CSV File</label>
+                    <input type="file" id="csv-file-input" accept=".csv" class="sr-only" />
+                </div>
+
+                <div id="import-mapping-section" style="display: none;">
+                    <h3 class="config-subtitle">Column Mapping</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="map-date">Date Column</label>
+                            <select id="map-date"></select>
+                        </div>
+                        <div class="form-group">
+                            <label for="map-desc">Description Column</label>
+                            <select id="map-desc"></select>
+                        </div>
+                        <div class="form-group">
+                            <label for="map-amount">Amount Column</label>
+                            <select id="map-amount"></select>
+                        </div>
+                        <div class="form-group">
+                            <label for="map-category">Category Column (Optional)</label>
+                            <select id="map-category"></select>
+                        </div>
+                    </div>
+
+                    <div class="preview-header-row">
+                        <h3 class="config-subtitle preview-subtitle">Preview Transactions (<span id="import-count">0</span> detected)</h3>
+                        <div class="header-right-group">
+                            <button id="btn-select-all-import" type="button" class="btn btn-outline btn-sm">Select All</button>
+                            <button id="btn-deselect-all-import" type="button" class="btn btn-outline btn-sm">Deselect All</button>
+                        </div>
+                    </div>
+
+                    <div class="import-preview-wrapper">
+                        <table id="import-preview-table" class="import-table">
+                            <thead>
+                                <tr>
+                                    <th class="col-check"><input type="checkbox" id="import-master-check" aria-label="Toggle all rows" checked /></th>
+                                    <th>Date</th>
+                                    <th>Description</th>
+                                    <th>Category</th>
+                                    <th class="col-amount">Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody id="import-preview-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer modal-footer-end">
+                <button type="button" id="btn-cancel-import" class="btn btn-outline">Cancel</button>
+                <button type="button" id="btn-commit-import" class="btn btn-primary btn-inline-auto" disabled>Import Transactions</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Receipt Lightbox Modal -->
+    <div id="receipt-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="receipt-modal-title">
+        <div class="modal-content window-box modal-medium">
+            <div class="window-header">
+                <h2 id="receipt-modal-title" class="window-title">
+                    <span class="icon-slot" data-icon="fileText" data-icon-size="16"></span>
+                    <span>Transaction Receipt / Invoice</span>
+                </h2>
+                <button type="button" id="btn-close-receipt" class="close-btn" aria-label="Close receipt view">
+                    <span class="icon-slot" data-icon="close" data-icon-size="16"></span>
+                </button>
+            </div>
+            <div class="modal-body section-body center-text">
+                <div class="receipt-meta" id="receipt-meta-info"></div>
+                <div class="receipt-frame">
+                    <img id="receipt-preview-img" src="" alt="Attached transaction receipt" width="520" height="360" />
+                </div>
+            </div>
+            <div class="modal-footer modal-footer-between">
+                <a id="btn-download-receipt" class="btn btn-outline btn-sm" download="receipt.png" href="#">
+                    <span class="icon-slot" data-icon="download" data-icon-size="14"></span>
+                    <span>Download Receipt</span>
+                </a>
+                <button type="button" id="btn-dismiss-receipt" class="btn btn-outline btn-sm">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Keyboard Shortcuts Modal -->
+    <div id="shortcuts-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="shortcuts-title">
+        <div class="modal-content window-box modal-narrow">
+            <div class="window-header">
+                <h2 id="shortcuts-title" class="window-title">
+                    <span class="icon-slot" data-icon="keyboard" data-icon-size="16"></span>
+                    <span>Keyboard Shortcuts</span>
+                </h2>
+                <button type="button" id="btn-close-shortcuts" class="close-btn" aria-label="Close shortcuts">
+                    <span class="icon-slot" data-icon="close" data-icon-size="16"></span>
+                </button>
+            </div>
+            <div class="modal-body section-body">
+                <div class="shortcuts-grid">
+                    <div class="shortcut-row"><span>Switch Workbench View</span><kbd class="cmd-kbd">Alt + 1..4</kbd></div>
+                    <div class="shortcut-row"><span>Command Palette</span><kbd class="cmd-kbd">Ctrl + K</kbd></div>
+                    <div class="shortcut-row"><span>Toggle Privacy Blur</span><kbd class="cmd-kbd">Ctrl + L</kbd></div>
+                    <div class="shortcut-row"><span>Focus Quick Entry</span><kbd class="cmd-kbd">N</kbd></div>
+                    <div class="shortcut-row"><span>Focus Ledger Search</span><kbd class="cmd-kbd">/</kbd></div>
+                    <div class="shortcut-row"><span>Toggle Audio Synth FX</span><kbd class="cmd-kbd">M</kbd></div>
+                    <div class="shortcut-row"><span>Close Dialog / Cancel Edit</span><kbd class="cmd-kbd">Esc</kbd></div>
+                    <div class="shortcut-row"><span>Show Shortcuts Help</span><kbd class="cmd-kbd">?</kbd></div>
+                </div>
+            </div>
+            <div class="modal-footer modal-footer-end">
+                <button type="button" id="btn-dismiss-shortcuts" class="btn btn-outline btn-sm">Done</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Confirmation / Prompt Dialog -->
+    <div id="action-dialog-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="action-dialog-title">
+        <div class="modal-content window-box modal-narrow">
+            <div class="window-header">
+                <h2 id="action-dialog-title" class="window-title">Confirm Action</h2>
+                <button type="button" id="btn-close-action-dialog" class="close-btn" aria-label="Close dialog">
+                    <span class="icon-slot" data-icon="close" data-icon-size="16"></span>
+                </button>
+            </div>
+            <div class="modal-body section-body">
+                <p id="action-dialog-message" class="dialog-message"></p>
+                <div id="action-dialog-input-wrap" class="form-group" style="display: none; margin-top: 16px;">
+                    <label id="action-dialog-input-label" for="action-dialog-input">Amount</label>
+                    <input type="number" id="action-dialog-input" step="0.01" min="0" />
+                </div>
+            </div>
+            <div class="modal-footer modal-footer-end">
+                <button type="button" id="btn-action-dialog-cancel" class="btn btn-outline">Cancel</button>
+                <button type="button" id="btn-action-dialog-confirm" class="btn btn-primary btn-inline-auto">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toast-container" class="toast-container" aria-live="polite" aria-atomic="true"></div>
+</body>
+</html>

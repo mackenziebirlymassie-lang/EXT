@@ -1,0 +1,63 @@
+plugins {
+    id("com.android.application")
+}
+
+def webRootDir = rootProject.projectDir.parentFile
+def webAssetsOutDir = file("${projectDir}/src/main/assets/www")
+
+tasks.register("syncWebAssets", Copy) {
+    description = "Copies PFCC V2 root web files into Android assets/www before compilation."
+    doFirst {
+        delete(webAssetsOutDir)
+    }
+    from(webRootDir) {
+        include("index.html", "style.css", "favicon.svg", "js/*.js")
+    }
+    into(webAssetsOutDir)
+}
+
+tasks.named("preBuild").configure {
+    dependsOn("syncWebAssets")
+}
+
+android {
+    namespace = "org.pfcc.financeos"
+    compileSdk = 35
+
+    defaultConfig {
+        applicationId = "org.pfcc.financeos"
+        minSdk = 24
+        targetSdk = 35
+        versionCode = 1
+        versionName = "2.0.0"
+    }
+
+    buildTypes {
+        release {
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+        }
+        debug {
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-debug"
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    packaging {
+        resources {
+            excludes += ["/META-INF/{AL2.0,LGPL2.1}"]
+        }
+    }
+}
+
+dependencies {
+}
