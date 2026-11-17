@@ -1080,6 +1080,19 @@ select:focus {
 }
 
 /* Charts & Ranked Category Breakdown */
+canvas {
+    display: block;
+    max-width: 100%;
+}
+
+.ledger-ops-grid > *,
+.two-col-grid > *,
+.forecast-grid > *,
+.window-box,
+.panel {
+    min-width: 0;
+}
+
 .chart-wrapper {
     padding: var(--space-4);
     height: 270px;
@@ -1105,7 +1118,8 @@ select:focus {
     background: transparent;
     color: var(--text-secondary);
     font-size: 0.75rem;
-    padding: 4px var(--space-2);
+    padding: 6px var(--space-3);
+    min-height: 32px;
     border-radius: 3px;
     font-family: var(--font-primary);
     font-weight: 600;
@@ -1638,6 +1652,7 @@ select:focus {
     justify-content: center;
     align-items: center;
     opacity: 0;
+    visibility: hidden;
     pointer-events: none;
     -webkit-transition: opacity var(--anim-speed) var(--ease-snappy);
     transition: opacity var(--anim-speed) var(--ease-snappy);
@@ -1647,6 +1662,7 @@ select:focus {
 
 .modal-overlay.active {
     opacity: 1;
+    visibility: visible;
     pointer-events: all;
 }
 
@@ -1765,9 +1781,11 @@ select:focus {
 }
 
 .checkbox-row input[type="checkbox"] {
-    width: 18px;
-    height: 18px;
-    min-height: 18px;
+    width: 32px;
+    min-width: 32px;
+    height: 32px;
+    min-height: 32px;
+    flex-shrink: 0;
     accent-color: var(--accent-fill);
 }
 
@@ -2176,13 +2194,13 @@ select:focus {
         width: 100%;
         background-color: var(--bg-surface);
         border-top: 1px solid var(--border-color);
-        padding: 4px 6px;
+        padding: 4px 3px;
         padding-bottom: max(4px, env(safe-area-inset-bottom));
         box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.48);
         display: flex;
         flex-wrap: nowrap;
         justify-content: space-between;
-        gap: 4px;
+        gap: 2px;
     }
 
     .workbench-tab {
@@ -2191,10 +2209,10 @@ select:focus {
         align-items: center;
         justify-content: center;
         text-align: center;
-        padding: 6px 1px;
+        padding: 6px 0;
         min-height: 48px;
         gap: 2px;
-        font-size: 0.625rem;
+        font-size: 0.59375rem;
         letter-spacing: -0.025em;
         line-height: 1.15;
         border: 1px solid transparent;
@@ -2212,7 +2230,7 @@ select:focus {
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
-        letter-spacing: -0.045em;
+        letter-spacing: -0.055em;
     }
 
     .timeframe-controls {
@@ -2311,6 +2329,39 @@ select:focus {
 
     .modal-content {
         max-height: 92vh;
+    }
+
+    .tab-btn {
+        min-width: 0;
+        flex-direction: column;
+        padding: 8px 2px;
+        min-height: 46px;
+        font-size: 0.6875rem;
+        gap: 3px;
+    }
+
+    .tab-content {
+        padding: 12px;
+    }
+
+    .cmd-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 2px;
+    }
+
+    .cmd-code {
+        word-break: break-word;
+        white-space: normal;
+    }
+
+    .slider-input {
+        min-height: 34px;
+    }
+
+    .ledger-table-wrap {
+        max-height: none;
+        overflow: visible;
     }
 
     /* Reflow Tabular Ledger into Clean Mobile Blocks */

@@ -8,14 +8,18 @@
     }
 
     function sizeHiDpiCanvas(canvas, fallbackHeight) {
-        const rect = canvas.parentElement ? canvas.parentElement.getBoundingClientRect() : { width: 640, height: fallbackHeight };
-        const width = Math.max(260, Math.floor(rect.width || 640));
+        canvas.style.width = '100%';
+        const parent = canvas.parentElement;
+        const rect = parent ? parent.getBoundingClientRect() : { width: 0, height: fallbackHeight };
+        const viewportCap = global.innerWidth ? Math.max(220, global.innerWidth - 36) : 640;
+        const measuredW = rect.width > 0 ? Math.min(rect.width, viewportCap) : Math.min(640, viewportCap);
+        const width = Math.max(220, Math.floor(measuredW));
         const height = Math.max(180, Math.floor(rect.height || fallbackHeight));
         const dpr = Math.min(global.devicePixelRatio || 1, 2);
 
         canvas.width = Math.floor(width * dpr);
         canvas.height = Math.floor(height * dpr);
-        canvas.style.width = `${width}px`;
+        canvas.style.width = '100%';
         canvas.style.height = `${height}px`;
 
         const ctx = canvas.getContext('2d');
