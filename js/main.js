@@ -312,6 +312,18 @@
     PFCC.updateTimeframeUI = updateTimeframeUI;
     PFCC.switchWorkbenchView = switchWorkbenchView;
     PFCC.handleBackPress = handleBackPress;
+    PFCC.onAppUpdateAvailable = function (buildNumber, releaseTitle, downloadUrl) {
+        if (!downloadUrl || !global.AndroidBridge || typeof global.AndroidBridge.startApkUpdate !== 'function') return;
+        PFCC.openActionDialog({
+            title: `Update Available (Build #${buildNumber})`,
+            message: `${releaseTitle || 'A newer APK build'} is ready. Installing updates the app in place while preserving local ledger data.`,
+            confirmLabel: 'Install Update',
+            onConfirm: () => {
+                PFCC.showToast('Downloading APK update...', 'info');
+                global.AndroidBridge.startApkUpdate(downloadUrl);
+            }
+        });
+    };
 
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', bootstrap);

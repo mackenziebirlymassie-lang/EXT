@@ -1041,6 +1041,18 @@
                             <input type="file" id="btn-restore" accept=".json" class="sr-only" />
                         </label>
                     </div>
+                    <div id="android-update-section" style="display: none;">
+                        <h3 class="config-subtitle spaced-subtitle">Android APK Updates</h3>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Installed APK Build</label>
+                                <input type="text" id="android-build-label" value="Local" readonly />
+                            </div>
+                            <div class="form-group" style="justify-content: flex-end;">
+                                <button id="btn-check-android-update" type="button" class="btn btn-outline">Check for APK Update</button>
+                            </div>
+                        </div>
+                    </div>
                     <button id="btn-wipe" type="button" class="btn btn-danger full-width-btn" data-i18n="btn_wipe">Purge All Data</button>
                 </div>
 

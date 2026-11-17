@@ -315,6 +315,23 @@
             });
         }
 
+        const androidUpdateSection = document.getElementById('android-update-section');
+        const androidBuildLabel = document.getElementById('android-build-label');
+        const btnCheckAndroidUpdate = document.getElementById('btn-check-android-update');
+        if (androidUpdateSection && global.AndroidBridge && typeof global.AndroidBridge.checkForUpdates === 'function') {
+            androidUpdateSection.style.display = 'block';
+            if (androidBuildLabel && typeof global.AndroidBridge.getAppBuild === 'function') {
+                androidBuildLabel.value = String(global.AndroidBridge.getAppBuild());
+            }
+            if (btnCheckAndroidUpdate) {
+                btnCheckAndroidUpdate.addEventListener('click', () => {
+                    PFCC.audio.playClickSound();
+                    PFCC.showToast('Checking GitHub releases for APK update...', 'info');
+                    global.AndroidBridge.checkForUpdates(true);
+                });
+            }
+        }
+
         if (el.setPresetTheme) {
             el.setPresetTheme.addEventListener('change', e => {
                 const theme = PFCC.themes.OS_THEMES[e.target.value];

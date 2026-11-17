@@ -8,6 +8,7 @@ import android.graphics.Color;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.provider.Settings;
 import android.util.Base64;
 import android.view.View;
 import android.view.Window;
@@ -21,21 +22,38 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.Toast;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class MainActivity extends Activity {
 
     private static final String ENTRY_URL = "file:///android_asset/www/index.html";
+    private static final String ALLOWED_APK_HOST_PREFIX = "https://github.com/mackenziebirlymassie-lang/EXT/releases/download/";
+    private static final String ALLOWED_CDN_PREFIX = "https://objects.githubusercontent.com/";
     private static final int REQ_FILE_PICKER = 1001;
     private static final int REQ_CREATE_DOCUMENT = 1002;
+    private static final int REQ_UNKNOWN_SOURCES = 1003;
 
     private final ExecutorService ioExecutor = Executors.newSingleThreadExecutor();
     private WebView webView;
     private ValueCallback<Uri[]> pendingFileCallback;
     private byte[] pendingSaveBytes;
+    private boolean pendingApkInstallReady;
+    private boolean startupUpdateChecked;
 
     @SuppressLint("SetJavaScriptEnabled")
     @Override
@@ -69,6 +87,15 @@ public class MainActivity extends Activity {
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, String url) {
                 return handleUriNavigation(Uri.parse(url));
+            }
+
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                super.onPageFinished(view, url);
+                if (!startupUpdateChecked && url != null && url.startsWith("file:///android_asset/")) {
+                    startupUpdateChecked = true;
+                    checkForGitHubUpdate(false);
+                }
             }
         });
 
@@ -151,6 +178,170 @@ public class MainActivity extends Activity {
         return true;
     }
 
+    private void checkForGitHubUpdate(boolean userInitiated) {
+        ioExecutor.execute(() -> {
+            HttpURLConnection conn = null;
+            try {
+                conn = (HttpURLConnection) new URL(BuildConfig.UPDATE_API_URL).openConnection();
+                conn.setRequestMethod("GET");
+                conn.setConnectTimeout(6000);
+                conn.setReadTimeout(6000);
+                conn.setRequestProperty("Accept", "application/vnd.github+json");
+                conn.setRequestProperty("User-Agent", "PFCC-Finance-OS-Android");
+
+                int code = conn.getResponseCode();
+                if (code != HttpURLConnection.HTTP_OK) {
+                    if (userInitiated) {
+                        runOnUiThread(() -> Toast.makeText(this, "Update check unavailable (" + code + ").", Toast.LENGTH_SHORT).show());
+                    }
+                    return;
+                }
+
+                StringBuilder sb = new StringBuilder();
+                try (BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        sb.append(line);
+                    }
+                }
+
+                JSONObject json = new JSONObject(sb.toString());
+                String title = json.optString("name", "PFCC V2 Update");
+                String body = json.optString("body", "");
+                int remoteBuild = parseBuildNumber(body, title);
+                String apkUrl = extractApkUrl(json.optJSONArray("assets"));
+
+                if (remoteBuild > BuildConfig.APP_BUILD_NUMBER && apkUrl != null) {
+                    String safeTitle = JSONObject.quote(title);
+                    String safeUrl = JSONObject.quote(apkUrl);
+                    runOnUiThread(() -> {
+                        if (webView != null) {
+                            webView.evaluateJavascript(
+                                "window.PFCC && PFCC.onAppUpdateAvailable && PFCC.onAppUpdateAvailable("
+                                    + remoteBuild + "," + safeTitle + "," + safeUrl + ");",
+                                null
+                            );
+                        }
+                    });
+                } else if (userInitiated) {
+                    runOnUiThread(() -> Toast.makeText(this, "Already on latest build (#" + BuildConfig.APP_BUILD_NUMBER + ").", Toast.LENGTH_SHORT).show());
+                }
+            } catch (Exception ex) {
+                if (userInitiated) {
+                    runOnUiThread(() -> Toast.makeText(this, "Offline or update check failed.", Toast.LENGTH_SHORT).show());
+                }
+            } finally {
+                if (conn != null) conn.disconnect();
+            }
+        });
+    }
+
+    private int parseBuildNumber(String body, String title) {
+        Matcher m = Pattern.compile("PFCC_BUILD:(\\d+)").matcher(body != null ? body : "");
+        if (m.find()) {
+            return Integer.parseInt(m.group(1));
+        }
+        Matcher tm = Pattern.compile("Build #(\\d+)").matcher(title != null ? title : "");
+        if (tm.find()) {
+            return Integer.parseInt(tm.group(1));
+        }
+        return 0;
+    }
+
+    private String extractApkUrl(JSONArray assets) {
+        if (assets == null) return null;
+        for (int i = 0; i < assets.length(); i++) {
+            JSONObject item = assets.optJSONObject(i);
+            if (item == null) continue;
+            String name = item.optString("name", "");
+            String url = item.optString("browser_download_url", "");
+            if (name.endsWith(".apk") && url.startsWith(ALLOWED_APK_HOST_PREFIX)) {
+                return url;
+            }
+        }
+        return null;
+    }
+
+    private void downloadAndInstallApk(String downloadUrl) {
+        if (downloadUrl == null || (!downloadUrl.startsWith(ALLOWED_APK_HOST_PREFIX) && !downloadUrl.startsWith(ALLOWED_CDN_PREFIX))) {
+            runOnUiThread(() -> Toast.makeText(this, "Blocked untrusted APK update URL.", Toast.LENGTH_LONG).show());
+            return;
+        }
+        ioExecutor.execute(() -> {
+            HttpURLConnection conn = null;
+            File outFile = ApkFileProvider.getUpdateApkFile(this);
+            File tmpFile = new File(outFile.getParentFile(), "PFCC-V2-latest.tmp");
+            try {
+                String currentUrl = downloadUrl;
+                for (int hops = 0; hops < 5; hops++) {
+                    conn = (HttpURLConnection) new URL(currentUrl).openConnection();
+                    conn.setInstanceFollowRedirects(false);
+                    conn.setConnectTimeout(15000);
+                    conn.setReadTimeout(30000);
+                    conn.setRequestProperty("User-Agent", "PFCC-Finance-OS-Android");
+                    int status = conn.getResponseCode();
+                    if (status == HttpURLConnection.HTTP_MOVED_TEMP || status == HttpURLConnection.HTTP_MOVED_PERM || status == 307 || status == 308) {
+                        String next = conn.getHeaderField("Location");
+                        conn.disconnect();
+                        if (next == null || !next.startsWith("https://")) {
+                            throw new SecurityException("Blocked non-HTTPS update redirect");
+                        }
+                        currentUrl = next;
+                        continue;
+                    }
+                    if (status != HttpURLConnection.HTTP_OK) {
+                        throw new IllegalStateException("HTTP " + status);
+                    }
+                    try (InputStream in = conn.getInputStream(); FileOutputStream fos = new FileOutputStream(tmpFile)) {
+                        byte[] buf = new byte[8192];
+                        int n;
+                        while ((n = in.read(buf)) != -1) {
+                            fos.write(buf, 0, n);
+                        }
+                        fos.flush();
+                    }
+                    if (outFile.exists()) outFile.delete();
+                    if (!tmpFile.renameTo(outFile)) {
+                        throw new IllegalStateException("Failed to finalize APK file");
+                    }
+                    runOnUiThread(this::triggerApkInstallIntent);
+                    return;
+                }
+                throw new IllegalStateException("Too many redirects");
+            } catch (Exception ex) {
+                if (tmpFile.exists()) tmpFile.delete();
+                runOnUiThread(() -> Toast.makeText(this, "APK download failed: " + ex.getMessage(), Toast.LENGTH_LONG).show());
+            } finally {
+                if (conn != null) conn.disconnect();
+            }
+        });
+    }
+
+    private void triggerApkInstallIntent() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !getPackageManager().canRequestPackageInstalls()) {
+            pendingApkInstallReady = true;
+            Toast.makeText(this, "Allow installs from this app to apply the update.", Toast.LENGTH_LONG).show();
+            Intent permIntent = new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + getPackageName()));
+            try {
+                startActivityForResult(permIntent, REQ_UNKNOWN_SOURCES);
+            } catch (ActivityNotFoundException ex) {
+                pendingApkInstallReady = false;
+                Toast.makeText(this, "Open Unknown App Sources settings manually.", Toast.LENGTH_LONG).show();
+            }
+            return;
+        }
+        pendingApkInstallReady = false;
+        Uri apkUri = ApkFileProvider.getApkUri(this);
+        Intent install = new Intent(Intent.ACTION_VIEW);
+        install.setDataAndType(apkUri, "application/vnd.android.package-archive");
+        install.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        try {
+            startActivity(install);
+        } catch (ActivityNotFoundException ex) {
+            Toast.makeText(this, "No package installer found on device.", Toast.LENGTH_SHORT).show();
+        }
+    }
+
     private void saveDataUri(String defaultFilename, String dataUri) {
         if (dataUri == null || !dataUri.startsWith("data:")) return;
         int commaIdx = dataUri.indexOf(',');
@@ -196,6 +387,15 @@ public class MainActivity extends Activity {
                 Uri[] results = WebChromeClient.FileChooserParams.parseResult(resultCode, data);
                 pendingFileCallback.onReceiveValue(results);
                 pendingFileCallback = null;
+            }
+            return;
+        }
+
+        if (requestCode == REQ_UNKNOWN_SOURCES) {
+            if (pendingApkInstallReady && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && getPackageManager().canRequestPackageInstalls()) {
+                triggerApkInstallIntent();
+            } else {
+                pendingApkInstallReady = false;
             }
             return;
         }
@@ -278,6 +478,21 @@ public class MainActivity extends Activity {
         @JavascriptInterface
         public void saveBase64(String filename, String dataUri) {
             saveDataUri(filename, dataUri);
+        }
+
+        @JavascriptInterface
+        public String getAppBuild() {
+            return "2.0." + BuildConfig.APP_BUILD_NUMBER + " (#" + BuildConfig.APP_BUILD_NUMBER + ")";
+        }
+
+        @JavascriptInterface
+        public void checkForUpdates(boolean userInitiated) {
+            checkForGitHubUpdate(userInitiated);
+        }
+
+        @JavascriptInterface
+        public void startApkUpdate(String downloadUrl) {
+            downloadAndInstallApk(downloadUrl);
         }
     }
 }

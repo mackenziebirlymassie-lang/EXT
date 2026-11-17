@@ -113,7 +113,10 @@ gradle assembleDebug
 ```
 
 Gradle also triggers `syncWebAssets` automatically before `preBuild`, outputting `android/app/build/outputs/apk/debug/app-debug.apk`.
-3. **Cloud Builds & Releases**: GitHub Actions ([android-apk.yml](.github/workflows/android-apk.yml)) runs `npm test`, `npm run android:sync`, and `gradle assembleDebug` on every push to `main` and automatically attaches the compiled APK to `v*` tag releases.
+3. **Cloud Builds & Auto-Updates**:
+   - Every push to `main` triggers [android-apk.yml](.github/workflows/android-apk.yml) (`npm run android:sync`, `npm test`, `gradle assembleDebug`), signs with a cached consistent keystore, and publishes a rolling `latest` pre-release (`PFCC-V2-latest.apk`).
+   - Installed APKs automatically check the `latest` GitHub Release on launch (or manually via **Config -> Data -> Check for APK Update**) and install newer builds in place via Android's Storage/Package Installer while keeping all `localStorage` data intact.
+   - Pushing a `v*` tag attaches the versioned APK directly to the tagged GitHub Release.
 
 ## Testing
 

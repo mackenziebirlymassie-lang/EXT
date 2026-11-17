@@ -472,6 +472,7 @@ test('Android APK project scaffold and synced www assets are complete and consis
         'android/app/proguard-rules.pro',
         'android/app/src/main/AndroidManifest.xml',
         'android/app/src/main/java/org/pfcc/financeos/MainActivity.java',
+        'android/app/src/main/java/org/pfcc/financeos/ApkFileProvider.java',
         'android/app/src/main/res/drawable/ic_launcher_foreground.xml',
         'android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml',
         'android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml',
@@ -491,13 +492,27 @@ test('Android APK project scaffold and synced www assets are complete and consis
     const gradle = fs.readFileSync(path.join(rootDir, 'android/app/build.gradle'), 'utf8');
     assert.equal(gradle.includes('minSdk = 24'), true);
     assert.equal(gradle.includes('syncWebAssets'), true);
+    assert.equal(gradle.includes('APP_BUILD_NUMBER'), true);
+    const manifest = fs.readFileSync(path.join(rootDir, 'android/app/src/main/AndroidManifest.xml'), 'utf8');
+    assert.equal(manifest.includes('REQUEST_INSTALL_PACKAGES'), true);
+    assert.equal(manifest.includes('ApkFileProvider'), true);
     const java = fs.readFileSync(path.join(rootDir, 'android/app/src/main/java/org/pfcc/financeos/MainActivity.java'), 'utf8');
     assert.equal(java.includes('setDomStorageEnabled(true)'), true);
     assert.equal(java.includes('onShowFileChooser'), true);
     assert.equal(java.includes('AndroidBridge'), true);
     assert.equal(java.includes('handleBackPress'), true);
+    assert.equal(java.includes('checkForUpdates'), true);
+    assert.equal(java.includes('startApkUpdate'), true);
     assert.equal(
         fs.readFileSync(path.join(rootDir, 'index.html'), 'utf8'),
         fs.readFileSync(path.join(rootDir, 'android/app/src/main/assets/www/index.html'), 'utf8')
     );
+});
+
+test('PFCC.onAppUpdateAvailable invokes AndroidBridge.startApkUpdate upon confirmation', () => {
+    const { PFCC } = loadAppModules();
+    assert.equal(typeof PFCC.onAppUpdateAvailable, 'function');
+    assert.doesNotThrow(() => {
+        PFCC.onAppUpdateAvailable(5, 'Build #5', 'https://github.com/mackenziebirlymassie-lang/EXT/releases/download/latest/PFCC-V2-latest.apk');
+    });
 });

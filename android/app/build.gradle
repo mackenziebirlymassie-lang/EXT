@@ -20,6 +20,8 @@ tasks.named("preBuild").configure {
     dependsOn("syncWebAssets")
 }
 
+def ciBuildNumber = (System.getenv("GITHUB_RUN_NUMBER") ?: "1").toInteger()
+
 android {
     namespace = "org.pfcc.financeos"
     compileSdk = 35
@@ -28,8 +30,14 @@ android {
         applicationId = "org.pfcc.financeos"
         minSdk = 24
         targetSdk = 35
-        versionCode = 1
-        versionName = "2.0.0"
+        versionCode = ciBuildNumber
+        versionName = "2.0.${ciBuildNumber}"
+        buildConfigField "int", "APP_BUILD_NUMBER", "${ciBuildNumber}"
+        buildConfigField "String", "UPDATE_API_URL", "\"https://api.github.com/repos/mackenziebirlymassie-lang/EXT/releases/tags/latest\""
+    }
+
+    buildFeatures {
+        buildConfig = true
     }
 
     buildTypes {
