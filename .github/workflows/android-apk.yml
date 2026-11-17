@@ -101,11 +101,11 @@ jobs:
           git tag -f latest HEAD
           git push -f origin refs/tags/latest
           if gh release view latest >/dev/null 2>&1; then
-            gh release edit latest --prerelease --title "PFCC V2 Latest (Build #${GITHUB_RUN_NUMBER})" --notes "$NOTES"
+            gh release edit latest --prerelease=false --latest --title "PFCC V2 Latest (Build #${GITHUB_RUN_NUMBER})" --notes "$NOTES"
             gh release upload latest "$CP_PATH" --clobber
           else
             gh release create latest "$CP_PATH" \
-              --prerelease \
+              --latest \
               --title "PFCC V2 Latest (Build #${GITHUB_RUN_NUMBER})" \
               --notes "$NOTES"
           fi
