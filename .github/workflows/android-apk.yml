@@ -24,10 +24,10 @@ jobs:
         with:
           node-version: "20"
 
-      - name: Verify web tests and sync Android assets
+      - name: Sync Android assets and verify tests
         run: |
-          npm test
           npm run android:sync
+          npm test
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
