@@ -11,10 +11,15 @@
         canvas.style.width = '100%';
         const parent = canvas.parentElement;
         const rect = parent ? parent.getBoundingClientRect() : { width: 0, height: fallbackHeight };
-        const viewportCap = global.innerWidth ? Math.max(220, global.innerWidth - 36) : 640;
-        const measuredW = rect.width > 0 ? Math.min(rect.width, viewportCap) : Math.min(640, viewportCap);
-        const width = Math.max(220, Math.floor(measuredW));
-        const height = Math.max(180, Math.floor(rect.height || fallbackHeight));
+        const cs = (parent && global.getComputedStyle) ? global.getComputedStyle(parent) : null;
+        const padX = cs ? ((parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0)) : 0;
+        const padY = cs ? ((parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0)) : 0;
+        const rawW = rect.width > 0 ? Math.max(0, rect.width - padX) : 640;
+        const rawH = (rect.height > 0 ? rect.height : fallbackHeight) - padY;
+        const viewportCap = global.innerWidth ? Math.max(200, global.innerWidth - 36) : 640;
+        const measuredW = Math.min(rawW, viewportCap);
+        const width = Math.max(200, Math.floor(measuredW));
+        const height = Math.max(160, Math.floor(rawH));
         const dpr = Math.min(global.devicePixelRatio || 1, 2);
 
         canvas.width = Math.floor(width * dpr);
@@ -30,9 +35,38 @@
     function formatShortMoney(val) {
         const abs = Math.abs(val);
         const sign = val < 0 ? '-' : '';
+        if (abs >= 1000000000000) return `${sign}${(abs / 1000000000000).toFixed(1)}T`;
+        if (abs >= 1000000000) return `${sign}${(abs / 1000000000).toFixed(1)}B`;
         if (abs >= 1000000) return `${sign}${(abs / 1000000).toFixed(1)}M`;
         if (abs >= 1000) return `${sign}${(abs / 1000).toFixed(1)}k`;
         return `${sign}${Math.round(abs)}`;
+    }
+
+    function computeLeftPad(ctx, labels, minPad) {
+        let maxW = 0;
+        for (let i = 0; i < labels.length; i++) {
+            const w = ctx.measureText ? ctx.measureText(labels[i]).width : String(labels[i]).length * 7;
+            if (w > maxW) maxW = w;
+        }
+        return Math.max(minPad || 44, Math.min(72, Math.ceil(maxW) + 12));
+    }
+
+    function drawTopLegend(ctx, padLeft, rightEdge, items) {
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+        let cursorX = padLeft;
+        let cursorY = 4;
+        for (let i = 0; i < items.length; i++) {
+            const item = items[i];
+            const w = ctx.measureText ? ctx.measureText(item.label).width : item.label.length * 7;
+            if (i > 0 && cursorX + w > rightEdge) {
+                cursorX = padLeft;
+                cursorY += 14;
+            }
+            ctx.fillStyle = item.color;
+            ctx.fillText(item.label, cursorX, cursorY);
+            cursorX += w + 14;
+        }
     }
 
     function pad2(n) {
@@ -107,18 +141,22 @@
         const state = PFCC.state;
         const series = computeBudgetPaceSeries(state.transactions, state.timeframe, state.settings.budget);
 
-        const pad = { top: 20, right: 16, bottom: 28, left: 54 };
-        const plotW = Math.max(60, width - pad.left - pad.right);
-        const plotH = Math.max(60, height - pad.top - pad.bottom);
-
         const actualNums = series.actualCumulative.filter(v => v !== null);
         const maxVal = Math.max(100, series.budget, ...(actualNums.length ? actualNums : [0])) * 1.1;
 
         ctx.clearRect(0, 0, width, height);
         ctx.font = `11px ${state.settings.font}`;
 
-        // Horizontal Grid & Y Labels
         const steps = 4;
+        const yLabels = [];
+        for (let i = 0; i <= steps; i++) {
+            yLabels.push(formatShortMoney(maxVal * (i / steps)));
+        }
+        const pad = { top: 22, right: 14, bottom: 26, left: computeLeftPad(ctx, yLabels, 44) };
+        const plotW = Math.max(60, width - pad.left - pad.right);
+        const plotH = Math.max(60, height - pad.top - pad.bottom);
+
+        // Horizontal Grid & Y Labels
         for (let i = 0; i <= steps; i++) {
             const ratio = i / steps;
             const y = pad.top + plotH - ratio * plotH;
@@ -132,7 +170,7 @@
             ctx.fillStyle = theme.textSec;
             ctx.textAlign = 'right';
             ctx.textBaseline = 'middle';
-            ctx.fillText(formatShortMoney(maxVal * ratio), pad.left - 8, y);
+            ctx.fillText(yLabels[i], pad.left - 8, y);
         }
 
         const xForDay = d => pad.left + ((d - 1) / Math.max(1, series.daysInMonth - 1)) * plotW;
@@ -202,14 +240,9 @@
         }
 
         // Legend Strip at Top Left of Plot
-        ctx.textAlign = 'left';
-        ctx.textBaseline = 'top';
-        ctx.fillStyle = lineColor;
-        ctx.fillText('Actual Spend', pad.left, 4);
-        if (series.budget > 0) {
-            ctx.fillStyle = theme.textSec;
-            ctx.fillText('-- Ideal Pace', pad.left + 96, 4);
-        }
+        const legendItems = [{ label: 'Actual Spend', color: lineColor }];
+        if (series.budget > 0) legendItems.push({ label: '-- Ideal Pace', color: theme.textSec });
+        drawTopLegend(ctx, pad.left, width - pad.right, legendItems);
 
         canvas._chartMeta = { type: 'pace', series, pad, plotW, plotH, maxVal };
     }
@@ -235,9 +268,6 @@
             });
         }
 
-        const pad = { top: 22, right: 14, bottom: 28, left: 54 };
-        const plotW = Math.max(60, width - pad.left - pad.right);
-        const plotH = Math.max(60, height - pad.top - pad.bottom);
         const allMonthNums = months.reduce((acc, m) => {
             acc.push(m.inc, m.exp);
             return acc;
@@ -246,6 +276,14 @@
 
         ctx.clearRect(0, 0, width, height);
         ctx.font = `11px ${PFCC.state.settings.font}`;
+
+        const yLabels = [];
+        for (let i = 0; i <= 4; i++) {
+            yLabels.push(formatShortMoney(maxVal * (i / 4)));
+        }
+        const pad = { top: 22, right: 12, bottom: 26, left: computeLeftPad(ctx, yLabels, 44) };
+        const plotW = Math.max(60, width - pad.left - pad.right);
+        const plotH = Math.max(60, height - pad.top - pad.bottom);
 
         for (let i = 0; i <= 4; i++) {
             const ratio = i / 4;
@@ -260,7 +298,7 @@
             ctx.fillStyle = theme.textSec;
             ctx.textAlign = 'right';
             ctx.textBaseline = 'middle';
-            ctx.fillText(formatShortMoney(maxVal * ratio), pad.left - 8, y);
+            ctx.fillText(yLabels[i], pad.left - 8, y);
         }
 
         const groupW = plotW / months.length;
@@ -283,24 +321,18 @@
             ctx.fillText(m.label, cx, pad.top + plotH + 8);
         });
 
-        ctx.textAlign = 'left';
-        ctx.textBaseline = 'top';
-        ctx.fillStyle = theme.colorGreen;
-        ctx.fillText('Income', pad.left, 4);
-        ctx.fillStyle = theme.colorRed;
-        ctx.fillText('Expenses', pad.left + 58, 4);
+        drawTopLegend(ctx, pad.left, width - pad.right, [
+            { label: 'Income', color: theme.colorGreen },
+            { label: 'Expenses', color: theme.colorRed }
+        ]);
 
         canvas._chartMeta = { type: 'monthly', months, pad, groupW };
     }
 
     function renderForecastCanvas(canvas, projData) {
         if (!canvas || !projData) return;
-        const { ctx, width, height } = sizeHiDpiCanvas(canvas, 240);
+        const { ctx, width, height } = sizeHiDpiCanvas(canvas, 220);
         const theme = getTheme();
-
-        const pad = { top: 22, right: 16, bottom: 28, left: 60 };
-        const plotW = Math.max(60, width - pad.left - pad.right);
-        const plotH = Math.max(60, height - pad.top - pad.bottom);
 
         const allVals = [...projData.baseline, ...projData.simulated];
         const maxVal = Math.max(100, ...allVals) * 1.12;
@@ -310,9 +342,25 @@
         ctx.clearRect(0, 0, width, height);
         ctx.font = `11px ${PFCC.state.settings.font}`;
 
+        const yLabels = [];
+        for (let i = 0; i <= 4; i++) {
+            yLabels.push(formatShortMoney(minVal + span * (i / 4)));
+        }
+
+        const simLegend = width < 300 ? 'Simulated' : 'Simulated Net Worth';
+        const baseLegend = '-- Baseline';
+        const leftPad = computeLeftPad(ctx, yLabels, 44);
+        const rightEdge = width - 12;
+        const simW = ctx.measureText ? ctx.measureText(simLegend).width : simLegend.length * 7;
+        const baseW = ctx.measureText ? ctx.measureText(baseLegend).width : baseLegend.length * 7;
+        const wrapsLegend = leftPad + simW + 14 + baseW > rightEdge;
+
+        const pad = { top: wrapsLegend ? 34 : 22, right: 12, bottom: 26, left: leftPad };
+        const plotW = Math.max(60, width - pad.left - pad.right);
+        const plotH = Math.max(60, height - pad.top - pad.bottom);
+
         for (let i = 0; i <= 4; i++) {
             const ratio = i / 4;
-            const val = minVal + span * ratio;
             const y = pad.top + plotH - ratio * plotH;
             ctx.strokeStyle = theme.border;
             ctx.lineWidth = 1;
@@ -324,7 +372,7 @@
             ctx.fillStyle = theme.textSec;
             ctx.textAlign = 'right';
             ctx.textBaseline = 'middle';
-            ctx.fillText(formatShortMoney(val), pad.left - 8, y);
+            ctx.fillText(yLabels[i], pad.left - 8, y);
         }
 
         const totalPts = projData.simulated.length;
@@ -352,7 +400,7 @@
         ctx.stroke();
         ctx.restore();
 
-        // Simulated curve
+        // Simulated curve + soft area fill
         ctx.strokeStyle = theme.colorGreen;
         ctx.lineWidth = 2.25;
         ctx.beginPath();
@@ -362,12 +410,27 @@
         });
         ctx.stroke();
 
-        ctx.textAlign = 'left';
-        ctx.textBaseline = 'top';
-        ctx.fillStyle = theme.colorGreen;
-        ctx.fillText('Simulated Net Worth', pad.left, 4);
-        ctx.fillStyle = theme.textSec;
-        ctx.fillText('-- Baseline', pad.left + 140, 4);
+        if (totalPts > 1) {
+            const endX = xForIdx(totalPts - 1);
+            const endY = yForVal(projData.simulated[totalPts - 1]);
+            ctx.lineTo(endX, pad.top + plotH);
+            ctx.lineTo(xForIdx(0), pad.top + plotH);
+            ctx.closePath();
+            ctx.fillStyle = PFCC.utils.hexToRgba(theme.colorGreen, 0.12);
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.arc(endX, endY, 3.5, 0, Math.PI * 2);
+            ctx.fillStyle = theme.colorGreen;
+            ctx.fill();
+        }
+
+        drawTopLegend(ctx, pad.left, rightEdge, [
+            { label: simLegend, color: theme.colorGreen },
+            { label: baseLegend, color: theme.textSec }
+        ]);
+
+        canvas._chartMeta = { type: 'forecast', series: projData, pad, plotW, plotH, minVal, span };
     }
 
     function renderCategoryBreakdown(activeTimeframeTxs) {
@@ -428,11 +491,11 @@
         const tip = PFCC.dom.chartTooltip;
         if (!canvas || !tip) return;
 
-        canvas.addEventListener('mousemove', e => {
+        const updateTip = (clientX, clientY) => {
             const meta = canvas._chartMeta;
             if (!meta) return;
             const rect = canvas.getBoundingClientRect();
-            const mx = e.clientX - rect.left;
+            const mx = clientX - rect.left;
 
             if (meta.type === 'pace') {
                 const rel = Math.max(0, Math.min(1, (mx - meta.pad.left) / meta.plotW));
@@ -444,16 +507,39 @@
                 const idx = Math.max(0, Math.min(meta.months.length - 1, Math.floor((mx - meta.pad.left) / meta.groupW)));
                 const m = meta.months[idx];
                 tip.textContent = `${m.label}: +${PFCC.utils.formatCurrency(m.inc)} / -${PFCC.utils.formatCurrency(m.exp)}`;
+            } else if (meta.type === 'forecast') {
+                const totalPts = meta.series.simulated.length;
+                const rel = Math.max(0, Math.min(1, (mx - meta.pad.left) / meta.plotW));
+                const idx = Math.round(rel * Math.max(0, totalPts - 1));
+                const simVal = meta.series.simulated[idx] || 0;
+                const baseVal = meta.series.baseline[idx] || 0;
+                const label = idx === 0 ? 'Now' : `${idx}m`;
+                tip.textContent = `${label}: ${PFCC.utils.formatCurrency(simVal)} (Base ${PFCC.utils.formatCurrency(baseVal)})`;
             }
 
             tip.style.display = 'block';
-            tip.style.left = `${Math.min(e.clientX + 12, global.innerWidth - 220)}px`;
-            tip.style.top = `${Math.max(8, e.clientY - 28)}px`;
-        });
+            const vw = global.innerWidth || 360;
+            const maxLeft = Math.max(8, vw - Math.min(260, vw - 16));
+            tip.style.left = `${Math.max(8, Math.min(clientX + 10, maxLeft))}px`;
+            tip.style.top = `${Math.max(8, clientY - 34)}px`;
+        };
 
+        canvas.addEventListener('mousemove', e => updateTip(e.clientX, e.clientY));
         canvas.addEventListener('mouseleave', () => {
             tip.style.display = 'none';
         });
+        canvas.addEventListener('touchstart', e => {
+            if (e.touches && e.touches[0]) updateTip(e.touches[0].clientX, e.touches[0].clientY);
+        }, { passive: true });
+        canvas.addEventListener('touchmove', e => {
+            if (e.touches && e.touches[0]) updateTip(e.touches[0].clientX, e.touches[0].clientY);
+        }, { passive: true });
+        canvas.addEventListener('touchend', () => {
+            tip.style.display = 'none';
+        }, { passive: true });
+        canvas.addEventListener('touchcancel', () => {
+            tip.style.display = 'none';
+        }, { passive: true });
     }
 
     function initCharts() {
@@ -471,6 +557,7 @@
         });
 
         bindCanvasTooltip(el.trendChartCanvas);
+        bindCanvasTooltip(el.forecastChartCanvas);
 
         global.addEventListener('resize', () => {
             if (PFCC.state.activeView === 'budget') {
@@ -482,6 +569,8 @@
     }
 
     PFCC.charts = {
+        sizeHiDpiCanvas,
+        formatShortMoney,
         computeBudgetPaceSeries,
         computeRankedCategories,
         renderForecastCanvas,

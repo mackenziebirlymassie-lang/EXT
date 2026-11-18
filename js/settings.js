@@ -231,7 +231,9 @@
             result.subscriptions = imported.subscriptions.filter(isObj).map((sub, i) => ({
                 id: String(sub.id || ('sub-' + Date.now() + '-' + i)),
                 name: String(sub.name || 'Subscription'),
-                amount: Math.max(0, Number(sub.amount) || 0)
+                amount: Math.max(0, Number(sub.amount) || 0),
+                billingCycle: sub.billingCycle === 'yearly' ? 'yearly' : 'monthly',
+                category: String(sub.category || 'Other')
             }));
         }
         if (Array.isArray(imported.ious)) {
@@ -239,15 +241,18 @@
                 id: String(iou.id || ('iou-' + Date.now() + '-' + i)),
                 person: String(iou.person || ''),
                 amount: Math.max(0, Number(iou.amount) || 0),
-                type: iou.type === 'owed' ? 'owed' : 'owe',
+                direction: (iou.direction === 'receivable' || iou.type === 'owed') ? 'receivable' : 'payable',
+                desc: String(iou.desc || ''),
                 settled: Boolean(iou.settled)
             }));
         }
         if (isObj(imported.holdings)) {
+            const h = imported.holdings;
             result.holdings = {
-                btc: Math.max(0, Number(imported.holdings.btc) || 0),
-                eth: Math.max(0, Number(imported.holdings.eth) || 0),
-                sol: Math.max(0, Number(imported.holdings.sol) || 0)
+                BTC: Math.max(0, Number(h.BTC !== undefined ? h.BTC : h.btc) || 0),
+                ETH: Math.max(0, Number(h.ETH !== undefined ? h.ETH : h.eth) || 0),
+                SOL: Math.max(0, Number(h.SOL !== undefined ? h.SOL : h.sol) || 0),
+                PAXG: Math.max(0, Number(h.PAXG !== undefined ? h.PAXG : h.paxg) || 0)
             };
         }
         if (typeof imported.soundEnabled === 'boolean') {

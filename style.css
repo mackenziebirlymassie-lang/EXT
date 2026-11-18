@@ -1262,17 +1262,20 @@ canvas {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    flex-wrap: wrap;
     font-size: 0.8125rem;
     margin-bottom: 6px;
-    gap: var(--space-2);
+    gap: var(--space-1) var(--space-2);
 }
 
 .slider-header label {
     color: var(--text-secondary);
+    min-width: 0;
 }
 
 .slider-val {
     font-weight: 700;
+    margin-left: auto;
 }
 
 .slider-input {
@@ -1315,6 +1318,7 @@ canvas {
     border: 1px solid var(--border-color);
     border-radius: var(--radius-sm);
     padding: var(--space-3);
+    min-width: 0;
 }
 
 .submetric-label {
@@ -1326,7 +1330,10 @@ canvas {
 .submetric-val {
     font-size: 1rem;
     font-weight: 700;
+    line-height: 1.25;
     margin-top: var(--space-1);
+    word-break: break-word;
+    overflow-wrap: anywhere;
 }
 
 /* Advisor & Progress Bars */
@@ -1679,6 +1686,19 @@ canvas {
 .modal-wide { max-width: 780px; }
 .modal-medium { max-width: 580px; }
 .modal-narrow { max-width: 480px; }
+
+.modal-content > .window-header {
+    flex-wrap: nowrap;
+}
+
+.modal-content > .window-header .window-title {
+    flex: 1;
+    min-width: 0;
+}
+
+.modal-content > .window-header .close-btn {
+    flex-shrink: 0;
+}
 
 .modal-body {
     flex: 1;
@@ -2054,7 +2074,7 @@ canvas {
     .ledger-ops-grid,
     .two-col-grid,
     .forecast-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: minmax(0, 1fr);
     }
 
     .metrics-grid {
@@ -2089,7 +2109,7 @@ canvas {
     }
 
     .submetrics-grid.three-col {
-        grid-template-columns: 1fr;
+        grid-template-columns: minmax(0, 1fr);
     }
 }
 
@@ -2271,6 +2291,68 @@ canvas {
         gap: 8px;
     }
 
+    .window-header .header-right-group {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .window-header .header-right-group .segmented-group {
+        flex: 1 1 auto;
+        width: auto;
+    }
+
+    .forecast-grid {
+        padding: 12px;
+        grid-gap: 12px;
+        gap: 12px;
+    }
+
+    .forecast-controls-col,
+    .sandbox-controls {
+        gap: 10px;
+    }
+
+    .slider-header {
+        font-size: 0.75rem;
+        margin-bottom: 2px;
+    }
+
+    .chart-wrapper {
+        padding: 10px;
+        height: 230px;
+    }
+
+    .forecast-chart-wrapper {
+        height: 220px;
+        padding: 0;
+    }
+
+    .panel-tab-group {
+        width: 100%;
+    }
+
+    .panel-tab-btn {
+        flex: 1;
+        justify-content: center;
+        min-height: 44px;
+    }
+
+    .sub-item,
+    .iou-item,
+    .debt-item {
+        padding: 10px 12px;
+        gap: 8px;
+    }
+
+    .debt-item .sub-info {
+        flex: 1 1 100%;
+    }
+
+    .debt-item .sub-actions {
+        width: 100%;
+        justify-content: space-between;
+    }
+
     .quick-entry-form {
         padding: 12px;
     }
@@ -2415,7 +2497,17 @@ canvas {
     }
 
     .submetrics-grid.two-col {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-gap: 8px;
+        gap: 8px;
+    }
+
+    .submetric-card {
+        padding: 8px 10px;
+    }
+
+    .submetric-val {
+        font-size: clamp(0.875rem, 3.8vw, 1rem);
     }
 }
 
@@ -2640,6 +2732,20 @@ canvas {
         flex: 1 1 100%;
     }
 
+    .section-body.forecast-grid {
+        margin: 0;
+    }
+
+    .section-body.forecast-grid > * {
+        margin: 6px 0;
+    }
+
+    @media (min-width: 901px) {
+        .section-body.forecast-grid > *:first-child {
+            margin-right: var(--space-4);
+        }
+    }
+
     .two-col-grid > *,
     .submetrics-grid.two-col > *,
     .forecast-grid > *,
@@ -2666,10 +2772,14 @@ canvas {
     @media (max-width: 640px) {
         .metrics-grid > *,
         .quick-entry-row > *,
-        .submetrics-grid.two-col > *,
         .form-row > * {
             -ms-flex: 1 1 100%;
             flex: 1 1 100%;
+        }
+
+        .submetrics-grid.two-col > * {
+            -ms-flex: 1 1 44%;
+            flex: 1 1 44%;
         }
     }
 }
@@ -2880,6 +2990,10 @@ canvas {
         .quick-entry-row .qe-cat {
             -ms-flex: 1 1 100%;
             flex: 1 1 100%;
+        }
+
+        .debt-item > * + * {
+            margin-left: 0;
         }
     }
 

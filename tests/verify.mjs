@@ -156,7 +156,13 @@ function loadAppModules(mockStorageData = {}, { throwOnSave = false } = {}) {
         setInterval: () => 0,
         requestAnimationFrame: () => 0,
         devicePixelRatio: 1,
-        getComputedStyle: () => ({ getPropertyValue: () => '' }),
+        getComputedStyle: el => ({
+            paddingTop: (el && el.style && el.style.paddingTop) || '0px',
+            paddingRight: (el && el.style && el.style.paddingRight) || '0px',
+            paddingBottom: (el && el.style && el.style.paddingBottom) || '0px',
+            paddingLeft: (el && el.style && el.style.paddingLeft) || '0px',
+            getPropertyValue: () => ''
+        }),
         matchMedia: () => ({ matches: false, addListener() {}, addEventListener() {} }),
         addEventListener: () => {},
         removeEventListener: () => {},
@@ -515,4 +521,98 @@ test('PFCC.onAppUpdateAvailable invokes AndroidBridge.startApkUpdate upon confir
     assert.doesNotThrow(() => {
         PFCC.onAppUpdateAvailable(5, 'Build #5', 'https://github.com/mackenziebirlymassie-lang/EXT/releases/download/latest/PFCC-V2-latest.apk');
     });
+});
+
+test('charts formatShortMoney supports billions/trillions and Forecast chart fits narrow portrait widths', () => {
+    const { PFCC } = loadAppModules();
+    assert.equal(typeof PFCC.charts.formatShortMoney, 'function');
+    assert.equal(PFCC.charts.formatShortMoney(1500000000), '1.5B');
+    assert.equal(PFCC.charts.formatShortMoney(2300000000000), '2.3T');
+    assert.equal(PFCC.charts.formatShortMoney(-5170000), '-5.2M');
+
+    const drawnTexts = [];
+    const mockCtx = {
+        scale() {}, setTransform() {}, clearRect() {}, beginPath() {}, moveTo() {}, lineTo() {},
+        stroke() {}, fillRect() {}, arc() {}, closePath() {}, fill() {}, save() {}, restore() {},
+        setLineDash() {},
+        measureText: txt => ({ width: String(txt || '').length * 7 }),
+        fillText(txt, x, y) { drawnTexts.push({ txt: String(txt), x, y }); }
+    };
+    const narrowCanvas = {
+        style: {},
+        width: 290,
+        height: 220,
+        parentElement: {
+            getBoundingClientRect: () => ({ width: 290, height: 220 })
+        },
+        getContext: () => mockCtx
+    };
+
+    PFCC.charts.renderForecastCanvas(narrowCanvas, {
+        baseline: [0, 2500000000, 5000000000],
+        simulated: [0, 3200000000, 6800000000]
+    });
+
+    assert.equal(narrowCanvas._chartMeta && narrowCanvas._chartMeta.type, 'forecast');
+    const baselineLegend = drawnTexts.find(item => item.txt.includes('Baseline'));
+    assert.ok(baselineLegend, 'Expected Baseline legend text to be rendered');
+    const estimatedEnd = baselineLegend.x + baselineLegend.txt.length * 7;
+    assert.ok(estimatedEnd <= 290, `Baseline legend clipped at ${estimatedEnd}px > 290px`);
+});
+
+test('charts sizeHiDpiCanvas subtracts parent padding so Trend chart does not overflow wrapper', () => {
+    const { PFCC } = loadAppModules();
+    assert.equal(typeof PFCC.charts.sizeHiDpiCanvas, 'function');
+    const canvas = {
+        style: {},
+        width: 0,
+        height: 0,
+        parentElement: {
+            style: {
+                paddingTop: '16px',
+                paddingBottom: '16px',
+                paddingLeft: '16px',
+                paddingRight: '16px'
+            },
+            getBoundingClientRect: () => ({ width: 338, height: 270 })
+        },
+        getContext: () => ({ setTransform() {} })
+    };
+
+    const sized = PFCC.charts.sizeHiDpiCanvas(canvas, 250);
+    assert.equal(sized.height, 238);
+    assert.equal(sized.width, 306);
+});
+
+test('backup normalizer preserves subscription cycles, IOU direction/desc, and uppercase holdings', () => {
+    const { PFCC } = loadAppModules();
+    const cleaned = PFCC.settings.sanitizeRestoredPayload({
+        subscriptions: [{ id: 's1', name: 'VPS', amount: 24, billingCycle: 'yearly', category: 'Software' }],
+        ious: [{ id: 'i1', person: 'Alice', amount: 45, direction: 'receivable', desc: 'Lunch', settled: false }],
+        holdings: { btc: 0.5, ETH: 2, SOL: 10, paxg: 1 }
+    });
+    assert.equal(cleaned.subscriptions[0].billingCycle, 'yearly');
+    assert.equal(cleaned.subscriptions[0].category, 'Software');
+    assert.equal(cleaned.ious[0].direction, 'receivable');
+    assert.equal(cleaned.ious[0].desc, 'Lunch');
+    assert.equal(cleaned.holdings.BTC, 0.5);
+    assert.equal(cleaned.holdings.ETH, 2);
+    assert.equal(cleaned.holdings.SOL, 10);
+    assert.equal(cleaned.holdings.PAXG, 1);
+});
+
+test('Forecast resetSimulation restores 3Y horizon along with sliders', () => {
+    const { PFCC } = loadAppModules();
+    PFCC.state.forecastYears = 10;
+    assert.equal(typeof PFCC.planning.resetSimulation, 'function');
+    PFCC.planning.resetSimulation();
+    assert.equal(PFCC.state.forecastYears, 3);
+});
+
+test('style.css portrait Forecast and modal layout fixes are present', () => {
+    const css = fs.readFileSync(path.join(rootDir, 'style.css'), 'utf8');
+    assert.equal(/\.modal-content\s*>\s*\.window-header[\s\S]*flex-wrap:\s*nowrap/.test(css), true, 'Modal header should not wrap close button');
+    assert.equal(/@media\s*\(max-width:\s*640px\)[\s\S]*\.submetrics-grid\.two-col\s*\{[\s\S]*repeat\(2,\s*minmax\(0,\s*1fr\)\)/.test(css), true, '640px mobile should keep two-col submetrics in 2x2 grid');
+    assert.equal(/@media\s*\(max-width:\s*1180px\)[\s\S]*grid-template-columns:\s*minmax\(0,\s*1fr\)/.test(css), true, 'Responsive collapsed grids should use minmax(0, 1fr)');
+    assert.equal(css.includes('.section-body.forecast-grid'), true, 'Legacy fallback must neutralize negative margin on .section-body.forecast-grid');
 });

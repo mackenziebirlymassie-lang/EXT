@@ -737,6 +737,22 @@
         }
     }
 
+    function resetSimulation() {
+        const el = PFCC.dom;
+        if (el.simIncomeShift) el.simIncomeShift.value = 0;
+        if (el.simExpenseShift) el.simExpenseShift.value = 0;
+        if (el.simAnnualGrowth) el.simAnnualGrowth.value = 7;
+        PFCC.state.forecastYears = 3;
+        if (el.simHorizonBtns) {
+            el.simHorizonBtns.forEach(b => {
+                const isDefault = b.getAttribute('data-years') === '3';
+                b.classList.toggle('active', isDefault);
+                b.setAttribute('aria-pressed', String(isDefault));
+            });
+        }
+        updateSimulation();
+    }
+
     function initPlanning() {
         const el = PFCC.dom;
         if (el.btnAdjustEnvelopes) {
@@ -755,8 +771,12 @@
         if (el.simHorizonBtns) {
             el.simHorizonBtns.forEach(btn => {
                 btn.addEventListener('click', () => {
-                    el.simHorizonBtns.forEach(b => b.classList.remove('active'));
+                    el.simHorizonBtns.forEach(b => {
+                        b.classList.remove('active');
+                        b.setAttribute('aria-pressed', 'false');
+                    });
                     btn.classList.add('active');
+                    btn.setAttribute('aria-pressed', 'true');
                     PFCC.state.forecastYears = parseInt(btn.getAttribute('data-years') || '3', 10);
                     updateSimulation();
                     PFCC.audio.playClickSound();
@@ -766,10 +786,7 @@
 
         if (el.btnResetSim) {
             el.btnResetSim.addEventListener('click', () => {
-                if (el.simIncomeShift) el.simIncomeShift.value = 0;
-                if (el.simExpenseShift) el.simExpenseShift.value = 0;
-                if (el.simAnnualGrowth) el.simAnnualGrowth.value = 7;
-                updateSimulation();
+                resetSimulation();
                 PFCC.audio.playClickSound();
             });
         }
@@ -869,6 +886,7 @@
         renderEnvelopes,
         parseGrowthRate,
         updateSimulation,
+        resetSimulation,
         renderHeatmap,
         updateFIREAndTax,
         renderVaults,
