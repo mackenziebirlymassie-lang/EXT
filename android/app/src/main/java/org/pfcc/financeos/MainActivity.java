@@ -44,6 +44,7 @@ public class MainActivity extends Activity {
     private static final String ENTRY_URL = "file:///android_asset/www/index.html";
     private static final String ALLOWED_APK_HOST_PREFIX = "https://github.com/mackenziebirlymassie-lang/EXT/releases/download/";
     private static final String ALLOWED_CDN_PREFIX = "https://objects.githubusercontent.com/";
+    private static final String ALLOWED_RELEASE_ASSETS_PREFIX = "https://release-assets.githubusercontent.com/";
     private static final int REQ_FILE_PICKER = 1001;
     private static final int REQ_CREATE_DOCUMENT = 1002;
     private static final int REQ_UNKNOWN_SOURCES = 1003;
@@ -262,8 +263,15 @@ public class MainActivity extends Activity {
         return null;
     }
 
+    private boolean isAllowedApkUrl(String url) {
+        if (url == null) return false;
+        return url.startsWith(ALLOWED_APK_HOST_PREFIX)
+            || url.startsWith(ALLOWED_CDN_PREFIX)
+            || url.startsWith(ALLOWED_RELEASE_ASSETS_PREFIX);
+    }
+
     private void downloadAndInstallApk(String downloadUrl) {
-        if (downloadUrl == null || (!downloadUrl.startsWith(ALLOWED_APK_HOST_PREFIX) && !downloadUrl.startsWith(ALLOWED_CDN_PREFIX))) {
+        if (!isAllowedApkUrl(downloadUrl)) {
             runOnUiThread(() -> Toast.makeText(this, "Blocked untrusted APK update URL.", Toast.LENGTH_LONG).show());
             return;
         }
@@ -292,13 +300,25 @@ public class MainActivity extends Activity {
                     if (status != HttpURLConnection.HTTP_OK) {
                         throw new IllegalStateException("HTTP " + status);
                     }
+                    long totalBytes = 0;
+                    byte[] magic = new byte[2];
+                    int magicRead = 0;
                     try (InputStream in = conn.getInputStream(); FileOutputStream fos = new FileOutputStream(tmpFile)) {
                         byte[] buf = new byte[8192];
                         int n;
                         while ((n = in.read(buf)) != -1) {
+                            if (magicRead < 2) {
+                                int copy = Math.min(2 - magicRead, n);
+                                System.arraycopy(buf, 0, magic, magicRead, copy);
+                                magicRead += copy;
+                            }
                             fos.write(buf, 0, n);
+                            totalBytes += n;
                         }
                         fos.flush();
+                    }
+                    if (totalBytes < 10240 || magicRead < 2 || magic[0] != 'P' || magic[1] != 'K') {
+                        throw new IllegalStateException("Invalid APK archive downloaded");
                     }
                     if (outFile.exists()) outFile.delete();
                     if (!tmpFile.renameTo(outFile)) {
@@ -335,6 +355,8 @@ public class MainActivity extends Activity {
         Intent install = new Intent(Intent.ACTION_VIEW);
         install.setDataAndType(apkUri, "application/vnd.android.package-archive");
         install.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        install.putExtra(Intent.EXTRA_NOT_UNKNOWN_SOURCE, true);
+        install.putExtra(Intent.EXTRA_INSTALLER_PACKAGE_NAME, getPackageName());
         try {
             startActivity(install);
         } catch (ActivityNotFoundException ex) {

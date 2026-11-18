@@ -616,3 +616,19 @@ test('style.css portrait Forecast and modal layout fixes are present', () => {
     assert.equal(/@media\s*\(max-width:\s*1180px\)[\s\S]*grid-template-columns:\s*minmax\(0,\s*1fr\)/.test(css), true, 'Responsive collapsed grids should use minmax(0, 1fr)');
     assert.equal(css.includes('.section-body.forecast-grid'), true, 'Legacy fallback must neutralize negative margin on .section-body.forecast-grid');
 });
+
+test('Android in-place APK updater uses explicit persistent signing config and validates downloaded APK', () => {
+    const gradle = fs.readFileSync(path.join(rootDir, 'android/app/build.gradle'), 'utf8');
+    const workflow = fs.readFileSync(path.join(rootDir, '.github/workflows/android-apk.yml'), 'utf8');
+    const java = fs.readFileSync(path.join(rootDir, 'android/app/src/main/java/org/pfcc/financeos/MainActivity.java'), 'utf8');
+    const provider = fs.readFileSync(path.join(rootDir, 'android/app/src/main/java/org/pfcc/financeos/ApkFileProvider.java'), 'utf8');
+
+    assert.equal(gradle.includes('PFCC_DEBUG_KEYSTORE'), true, 'build.gradle must support explicit PFCC_DEBUG_KEYSTORE for debug signing');
+    assert.equal(gradle.includes('signingConfigs'), true, 'build.gradle must configure signingConfigs.debug explicitly');
+    assert.equal(workflow.includes('PFCC_DEBUG_KEYSTORE'), true, 'CI workflow must pass PFCC_DEBUG_KEYSTORE to Gradle');
+    assert.equal(workflow.includes('apksigner'), true, 'CI workflow must verify APK signing certificate');
+    assert.equal(workflow.includes('O=PFCC'), true, 'CI workflow must enforce O=PFCC signing certificate');
+    assert.equal(java.includes('release-assets.githubusercontent.com'), true, 'MainActivity must allow GitHub release-assets CDN');
+    assert.equal(java.includes('EXTRA_NOT_UNKNOWN_SOURCE'), true, 'MainActivity should pass EXTRA_NOT_UNKNOWN_SOURCE to installer');
+    assert.equal(provider.includes('openAssetFile'), true, 'ApkFileProvider must override openAssetFile with real APK length');
+});

@@ -3,6 +3,7 @@ package org.pfcc.financeos;
 import android.content.ContentProvider;
 import android.content.ContentValues;
 import android.content.Context;
+import android.content.res.AssetFileDescriptor;
 import android.database.Cursor;
 import android.database.MatrixCursor;
 import android.net.Uri;
@@ -83,6 +84,14 @@ public class ApkFileProvider extends ContentProvider {
             throw new FileNotFoundException("APK file not found: " + APK_FILENAME);
         }
         return ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY);
+    }
+
+    @Override
+    public AssetFileDescriptor openAssetFile(Uri uri, String mode) throws FileNotFoundException {
+        ParcelFileDescriptor pfd = openFile(uri, mode);
+        Context ctx = getContext();
+        long len = ctx != null ? getUpdateApkFile(ctx).length() : AssetFileDescriptor.UNKNOWN_LENGTH;
+        return new AssetFileDescriptor(pfd, 0, len);
     }
 
     @Override

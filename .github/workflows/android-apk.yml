@@ -58,18 +58,26 @@ jobs:
       - name: Cache persistent Android signing keystore for in-place updates
         uses: actions/cache@v4
         with:
-          path: ~/.android/debug.keystore
-          key: pfcc-android-debug-keystore-v1
+          path: ~/.pfcc-signing/debug.keystore
+          key: pfcc-android-debug-keystore-v2
 
       - name: Ensure consistent Android debug keystore
+        env:
+          PFCC_DEBUG_KEYSTORE_B64: ${{ secrets.PFCC_DEBUG_KEYSTORE_B64 }}
         run: |
-          mkdir -p ~/.android
-          if [ ! -f ~/.android/debug.keystore ]; then
-            keytool -genkey -v -keystore ~/.android/debug.keystore \
+          SIGN_DIR="$HOME/.pfcc-signing"
+          KS_PATH="$SIGN_DIR/debug.keystore"
+          mkdir -p "$SIGN_DIR"
+          if [ -n "$PFCC_DEBUG_KEYSTORE_B64" ]; then
+            echo "$PFCC_DEBUG_KEYSTORE_B64" | base64 -d > "$KS_PATH"
+          elif [ ! -f "$KS_PATH" ]; then
+            keytool -genkeypair -v -keystore "$KS_PATH" \
+              -storetype PKCS12 \
               -storepass android -alias androiddebugkey -keypass android \
               -keyalg RSA -keysize 2048 -validity 10000 \
               -dname "CN=Android Debug,O=PFCC,C=US"
           fi
+          echo "PFCC_DEBUG_KEYSTORE=$KS_PATH" >> "$GITHUB_ENV"
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -79,6 +87,17 @@ jobs:
       - name: Build Debug APK
         working-directory: android
         run: gradle assembleDebug --no-daemon
+
+      - name: Verify APK signing certificate consistency
+        run: |
+          APK_PATH=$(ls android/app/build/outputs/apk/debug/*.apk | head -n 1)
+          APKSIGNER="${ANDROID_HOME}/build-tools/35.0.0/apksigner"
+          CERT_OUT=$("$APKSIGNER" verify --print-certs "$APK_PATH")
+          echo "$CERT_OUT"
+          echo "$CERT_OUT" | grep -q "O=PFCC" || {
+            echo "ERROR: APK was not signed with persistent O=PFCC debug keystore!"
+            exit 1
+          }
 
       - name: Upload Debug APK Artifact
         uses: actions/upload-artifact@v4
