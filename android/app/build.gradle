@@ -67,10 +67,25 @@ android {
                 }
             }
         }
+        release {
+            def relKsPath = System.getenv("EXT_RELEASE_KEYSTORE")
+            if (relKsPath) {
+                def relKsFile = file(relKsPath)
+                if (relKsFile.exists()) {
+                    storeFile relKsFile
+                    storePassword System.getenv("EXT_RELEASE_STORE_PASS") ?: "extupload"
+                    keyAlias System.getenv("EXT_RELEASE_KEY_ALIAS") ?: "extupload"
+                    keyPassword System.getenv("EXT_RELEASE_KEY_PASS") ?: "extupload"
+                }
+            }
+        }
     }
 
     buildTypes {
         release {
+            if (signingConfigs.release.storeFile != null) {
+                signingConfig signingConfigs.release
+            }
             minifyEnabled true
             shrinkResources true
             proguardFiles(
