@@ -94,7 +94,7 @@
             accentFill: '#536878',
             accentText: '#3E4E5C',
             accentContrast: '#FFFFFF',
-            colorGreen: '#15803D',
+            colorGreen: '#166534',
             colorRed: '#B91C1C',
             colorWarn: '#92400E',
             font: "'JetBrains Mono', monospace",

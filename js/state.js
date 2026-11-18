@@ -428,6 +428,8 @@
             chartTooltip: g('chart-tooltip'),
 
             // Header Actions
+            headerActions: g('header-actions'),
+            btnToggleTools: g('btn-toggle-tools'),
             displayName: g('display-name'),
             btnToggleSound: g('btn-toggle-sound'),
             btnTogglePrivacy: g('btn-toggle-privacy'),
@@ -435,6 +437,8 @@
             btnPrint: g('btn-print-report'),
             btnSettings: g('btn-settings'),
             btnShortcuts: g('btn-shortcuts'),
+            quickEntryBox: document.querySelector('.quick-entry-box'),
+            btnToggleQuickEntry: g('btn-toggle-quick-entry'),
 
             // CLI Modal
             cliModal: g('cli-modal'),

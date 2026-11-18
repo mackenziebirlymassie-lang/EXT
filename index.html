@@ -45,15 +45,11 @@
                 </div>
             </div>
 
-            <nav class="header-actions" aria-label="Workspace actions">
+            <nav id="header-actions" class="header-actions" aria-label="Workspace actions">
                 <button type="button" id="btn-open-cli" class="btn btn-outline" title="Command Palette (Ctrl+K)">
                     <span class="icon-slot" data-icon="terminal" data-icon-size="15"></span>
                     <span>CLI</span>
                     <kbd class="cmd-kbd">Ctrl+K</kbd>
-                </button>
-                <button type="button" id="btn-toggle-sound" class="btn btn-outline" title="Toggle Web Audio Synth FX (M)" aria-pressed="true">
-                    <span class="icon-slot" data-icon="volumeOn" data-icon-size="15"></span>
-                    <span>Sound</span>
                 </button>
                 <button type="button" id="btn-toggle-privacy" class="btn btn-outline" title="Toggle Privacy Blur (Ctrl+L)" aria-pressed="false">
                     <span class="icon-slot" data-icon="eye" data-icon-size="15"></span>
@@ -63,21 +59,29 @@
                     <span class="icon-slot" data-icon="upload" data-icon-size="15"></span>
                     <span>Import</span>
                 </button>
-                <button type="button" id="btn-export-csv" class="btn btn-outline" title="Export Transactions CSV">
-                    <span class="icon-slot" data-icon="download" data-icon-size="15"></span>
-                    <span data-i18n="export">CSV</span>
-                </button>
-                <button type="button" id="btn-print-report" class="btn btn-outline" title="Print Report">
-                    <span class="icon-slot" data-icon="printer" data-icon-size="15"></span>
-                    <span data-i18n="print">Report</span>
-                </button>
-                <button type="button" id="btn-shortcuts" class="btn btn-outline" title="Keyboard Shortcuts (?)" aria-label="Keyboard shortcuts help">
-                    <span class="icon-slot" data-icon="help" data-icon-size="15"></span>
-                    <span>Help</span>
-                </button>
                 <button type="button" id="btn-settings" class="btn btn-outline">
                     <span class="icon-slot" data-icon="sliders" data-icon-size="15"></span>
                     <span data-i18n="settings">Config</span>
+                </button>
+                <button type="button" id="btn-toggle-tools" class="btn btn-outline mobile-tools-toggle" aria-expanded="false" aria-controls="header-actions" aria-label="Toggle more workspace tools">
+                    <span class="icon-slot" data-icon="layers" data-icon-size="15"></span>
+                    <span>Tools</span>
+                </button>
+                <button type="button" id="btn-toggle-sound" class="btn btn-outline mobile-secondary-action" title="Toggle Web Audio Synth FX (M)" aria-pressed="true">
+                    <span class="icon-slot" data-icon="volumeOn" data-icon-size="15"></span>
+                    <span>Sound</span>
+                </button>
+                <button type="button" id="btn-export-csv" class="btn btn-outline mobile-secondary-action" title="Export Transactions CSV">
+                    <span class="icon-slot" data-icon="download" data-icon-size="15"></span>
+                    <span data-i18n="export">CSV</span>
+                </button>
+                <button type="button" id="btn-print-report" class="btn btn-outline mobile-secondary-action" title="Print Report">
+                    <span class="icon-slot" data-icon="printer" data-icon-size="15"></span>
+                    <span data-i18n="print">Report</span>
+                </button>
+                <button type="button" id="btn-shortcuts" class="btn btn-outline mobile-secondary-action" title="Keyboard Shortcuts (?)" aria-label="Keyboard shortcuts help">
+                    <span class="icon-slot" data-icon="help" data-icon-size="15"></span>
+                    <span>Help</span>
                 </button>
             </nav>
         </header>
@@ -154,10 +158,16 @@
                 <section class="panel window-box quick-entry-box" aria-label="Quick transaction entry">
                     <div class="window-header">
                         <h2 id="form-header-title" class="window-title" data-i18n="commit_transaction">Quick Entry</h2>
-                        <button type="button" id="btn-toggle-entry-details" class="btn btn-outline btn-sm" aria-expanded="false" aria-controls="entry-details-drawer">
-                            <span class="icon-slot" data-icon="paperclip" data-icon-size="13"></span>
-                            <span>Tags &amp; Receipt</span>
-                        </button>
+                        <div class="header-right-group qe-header-actions">
+                            <button type="button" id="btn-toggle-entry-details" class="btn btn-outline btn-sm" aria-expanded="false" aria-controls="entry-details-drawer">
+                                <span class="icon-slot" data-icon="paperclip" data-icon-size="13"></span>
+                                <span>Tags &amp; Receipt</span>
+                            </button>
+                            <button type="button" id="btn-toggle-quick-entry" class="btn btn-outline btn-sm mobile-qe-toggle" aria-expanded="true" aria-controls="transaction-form" aria-label="Collapse quick entry">
+                                <span class="icon-slot" data-icon="chevronUp" data-icon-size="14"></span>
+                                <span>Hide</span>
+                            </button>
+                        </div>
                     </div>
                     <form id="transaction-form" class="quick-entry-form">
                         <input type="hidden" id="edit-id" value="" />

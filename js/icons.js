@@ -17,6 +17,8 @@
         refresh: '<polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>',
         chevronLeft: '<polyline points="15 18 9 12 15 6"/>',
         chevronRight: '<polyline points="9 18 15 12 9 6"/>',
+        chevronDown: '<polyline points="6 9 12 15 18 9"/>',
+        chevronUp: '<polyline points="18 15 12 9 6 15"/>',
         shield: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
         target: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/>',
         trendUp: '<polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>',

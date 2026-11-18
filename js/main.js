@@ -59,6 +59,14 @@
         } else if (target === 'forecast') {
             PFCC.planning.updateSimulation();
         }
+
+        if (PFCC._bootstrapped && global.innerWidth && global.innerWidth <= 640) {
+            const mainEl = document.getElementById('main-workspace');
+            if (mainEl && mainEl.getBoundingClientRect && mainEl.getBoundingClientRect().top < 0) {
+                const reduced = global.matchMedia && global.matchMedia('(prefers-reduced-motion: reduce)').matches;
+                mainEl.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start' });
+            }
+        }
     }
 
     function updateValues(activeTimeframeTxs) {
@@ -110,8 +118,42 @@
         PFCC.utils.safeSaveJSON('appTransactions', PFCC.state.transactions);
     }
 
+    function setToolsOpen(open) {
+        const el = PFCC.dom;
+        if (!el.headerActions || !el.btnToggleTools) return;
+        el.headerActions.classList.toggle('tools-open', Boolean(open));
+        el.btnToggleTools.classList.toggle('active', Boolean(open));
+        el.btnToggleTools.setAttribute('aria-expanded', String(Boolean(open)));
+    }
+
+    function setQuickEntryCollapsed(collapsed) {
+        const el = PFCC.dom;
+        if (!el.quickEntryBox || !el.btnToggleQuickEntry) return;
+        const isCollapsed = Boolean(collapsed);
+        el.quickEntryBox.classList.toggle('qe-collapsed', isCollapsed);
+        el.btnToggleQuickEntry.setAttribute('aria-expanded', String(!isCollapsed));
+        el.btnToggleQuickEntry.setAttribute('aria-label', isCollapsed ? 'Expand quick entry' : 'Collapse quick entry');
+        el.btnToggleQuickEntry.textContent = '';
+        el.btnToggleQuickEntry.appendChild(PFCC.icons.create(isCollapsed ? 'chevronDown' : 'chevronUp', 14));
+        el.btnToggleQuickEntry.appendChild(PFCC.utils.createEl('span', '', isCollapsed ? 'Add' : 'Hide'));
+    }
+
     function initWorkbenchControls() {
         const el = PFCC.dom;
+        if (el.btnToggleTools) {
+            el.btnToggleTools.addEventListener('click', () => {
+                const isOpen = el.headerActions && el.headerActions.classList.contains('tools-open');
+                setToolsOpen(!isOpen);
+                PFCC.audio.playClickSound();
+            });
+        }
+        if (el.btnToggleQuickEntry) {
+            el.btnToggleQuickEntry.addEventListener('click', () => {
+                const isCollapsed = el.quickEntryBox && el.quickEntryBox.classList.contains('qe-collapsed');
+                setQuickEntryCollapsed(!isCollapsed);
+                PFCC.audio.playClickSound();
+            });
+        }
         if (!el.workbenchBtns) return;
         el.workbenchBtns.forEach(btn => {
             btn.addEventListener('click', () => {
@@ -254,6 +296,7 @@
                 if (e.key === 'n' || e.key === 'N') {
                     e.preventDefault();
                     switchWorkbenchView('ledger');
+                    setQuickEntryCollapsed(false);
                     if (el.text) {
                         el.text.scrollIntoView({ behavior: 'smooth', block: 'center' });
                         el.text.focus();
@@ -319,11 +362,13 @@
         switchWorkbenchView(PFCC.state.activeView);
         updateDOM();
         loadExternalFontsAsync();
+        PFCC._bootstrapped = true;
     }
 
     PFCC.updateDOM = updateDOM;
     PFCC.updateTimeframeUI = updateTimeframeUI;
     PFCC.switchWorkbenchView = switchWorkbenchView;
+    PFCC.setQuickEntryCollapsed = setQuickEntryCollapsed;
     PFCC.handleBackPress = handleBackPress;
     PFCC.onAppUpdateAvailable = function (buildNumber, releaseTitle, downloadUrl) {
         if (!downloadUrl || !global.AndroidBridge || typeof global.AndroidBridge.startApkUpdate !== 'function') return;

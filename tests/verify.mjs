@@ -612,7 +612,7 @@ test('Forecast resetSimulation restores 3Y horizon along with sliders', () => {
 test('style.css portrait Forecast and modal layout fixes are present', () => {
     const css = fs.readFileSync(path.join(rootDir, 'style.css'), 'utf8');
     assert.equal(/\.modal-content\s*>\s*\.window-header[\s\S]*flex-wrap:\s*nowrap/.test(css), true, 'Modal header should not wrap close button');
-    assert.equal(/@media\s*\(max-width:\s*640px\)[\s\S]*\.submetrics-grid\.two-col\s*\{[\s\S]*repeat\(2,\s*minmax\(0,\s*1fr\)\)/.test(css), true, '640px mobile should keep two-col submetrics in 2x2 grid');
+    assert.equal(/@media\s*\(max-width:\s*640px\)[\s\S]*\.submetrics-grid\.two-col[\s\S]*?\{[\s\S]*repeat\(2,\s*minmax\(0,\s*1fr\)\)/.test(css), true, '640px mobile should keep two-col submetrics in 2x2 grid');
     assert.equal(/@media\s*\(max-width:\s*1180px\)[\s\S]*grid-template-columns:\s*minmax\(0,\s*1fr\)/.test(css), true, 'Responsive collapsed grids should use minmax(0, 1fr)');
     assert.equal(css.includes('.section-body.forecast-grid'), true, 'Legacy fallback must neutralize negative margin on .section-body.forecast-grid');
 });
@@ -631,4 +631,24 @@ test('Android in-place APK updater uses explicit persistent signing config and v
     assert.equal(java.includes('release-assets.githubusercontent.com'), true, 'MainActivity must allow GitHub release-assets CDN');
     assert.equal(java.includes('EXTRA_NOT_UNKNOWN_SOURCE'), true, 'MainActivity should pass EXTRA_NOT_UNKNOWN_SOURCE to installer');
     assert.equal(provider.includes('openAssetFile'), true, 'ApkFileProvider must override openAssetFile with real APK length');
+});
+
+test('mobile compact UI toggles, 2x2 mobile grids, and compact ledger row styles are wired', () => {
+    const html = fs.readFileSync(path.join(rootDir, 'index.html'), 'utf8');
+    const css = fs.readFileSync(path.join(rootDir, 'style.css'), 'utf8');
+    const mainJs = fs.readFileSync(path.join(rootDir, 'js', 'main.js'), 'utf8');
+    const ledgerJs = fs.readFileSync(path.join(rootDir, 'js', 'ledger.js'), 'utf8');
+
+    assert.equal(html.includes('id="btn-toggle-tools"'), true, 'Header must include mobile Tools toggle button');
+    assert.equal(html.includes('mobile-secondary-action'), true, 'Secondary header actions must be marked for compact mobile tray');
+    assert.equal(html.includes('id="btn-toggle-quick-entry"'), true, 'Quick Entry header must include mobile collapse toggle');
+
+    assert.equal(mainJs.includes('btnToggleTools'), true, 'main.js must wire btnToggleTools');
+    assert.equal(mainJs.includes('btnToggleQuickEntry'), true, 'main.js must wire btnToggleQuickEntry');
+    assert.equal(ledgerJs.includes('qe-collapsed'), true, 'ledger.js startEditTransaction must expand collapsed Quick Entry');
+
+    assert.equal(/@media\s*\(max-width:\s*640px\)[\s\S]*\.submetrics-grid\.four-col\s*\{[\s\S]*repeat\(2,\s*minmax\(0,\s*1fr\)\)/.test(css), true, '640px mobile must render four-col metrics in 2x2 grid');
+    assert.equal(/@media\s*\(max-width:\s*640px\)[\s\S]*\.market-ticker-container\s*\{[\s\S]*repeat\(2,\s*minmax\(0,\s*1fr\)\)/.test(css), true, '640px mobile must render market tickers in 2x2 grid');
+    assert.equal(/@media\s*\(max-width:\s*640px\)[\s\S]*\.submetrics-grid\.three-col\s*\{[\s\S]*repeat\(3,\s*minmax\(0,\s*1fr\)\)/.test(css), true, '640px mobile must render debt summary three-col in 3-col strip');
+    assert.equal(/@media\s*\(max-width:\s*640px\)[\s\S]*\.ledger-row\s*\{[\s\S]*display:\s*grid/.test(css), true, '640px mobile must render ledger rows as compact CSS grid cards');
 });

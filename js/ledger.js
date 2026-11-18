@@ -41,6 +41,8 @@
     function startEditTransaction(t) {
         const el = PFCC.dom;
         if (typeof PFCC.switchWorkbenchView === 'function') PFCC.switchWorkbenchView('ledger');
+        if (typeof PFCC.setQuickEntryCollapsed === 'function') PFCC.setQuickEntryCollapsed(false);
+        else if (el.quickEntryBox) el.quickEntryBox.classList.remove('qe-collapsed');
         el.editId.value = t.id;
         el.text.value = t.text;
         el.amount.value = Math.abs(t.amount);
