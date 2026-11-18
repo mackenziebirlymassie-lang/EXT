@@ -749,6 +749,9 @@
                 b.classList.toggle('active', isDefault);
                 b.setAttribute('aria-pressed', String(isDefault));
             });
+            if (PFCC.liquid && el.simHorizonBtns[0] && el.simHorizonBtns[0].parentNode) {
+                PFCC.liquid.syncContainer(el.simHorizonBtns[0].parentNode, true);
+            }
         }
         updateSimulation();
     }
@@ -777,6 +780,9 @@
                     });
                     btn.classList.add('active');
                     btn.setAttribute('aria-pressed', 'true');
+                    if (PFCC.liquid && typeof PFCC.liquid.syncContainer === 'function') {
+                        PFCC.liquid.syncContainer(btn.parentNode, true);
+                    }
                     PFCC.state.forecastYears = parseInt(btn.getAttribute('data-years') || '3', 10);
                     updateSimulation();
                     PFCC.audio.playClickSound();
@@ -827,6 +833,9 @@
                 });
                 PFCC.utils.safeSaveJSON('appSavingsVaults', PFCC.state.savingsVaults);
                 el.vaultForm.reset();
+                if (PFCC.picker && typeof PFCC.picker.syncSelect === 'function') {
+                    PFCC.picker.syncSelect(el.vaultIcon);
+                }
                 el.vaultFormDrawer.classList.remove('active');
                 renderVaults();
                 PFCC.audio.playSuccessSound();
@@ -837,6 +846,9 @@
             btn.addEventListener('click', () => {
                 PFCC.compat.qsa('.debt-strategy-btn').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
+                if (PFCC.liquid && typeof PFCC.liquid.syncContainer === 'function') {
+                    PFCC.liquid.syncContainer(btn.parentNode, true);
+                }
                 PFCC.state.debtStrategy = btn.dataset.strategy;
                 renderDebts();
                 PFCC.audio.playClickSound();

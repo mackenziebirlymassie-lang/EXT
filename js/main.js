@@ -25,11 +25,17 @@
             btn.classList.toggle('active', active);
             btn.setAttribute('aria-pressed', String(active));
         });
+
+        if (PFCC.liquid && el.timeframeBtns && el.timeframeBtns[0] && el.timeframeBtns[0].parentNode) {
+            PFCC.liquid.syncContainer(el.timeframeBtns[0].parentNode, Boolean(PFCC._bootstrapped));
+        }
     }
 
     function switchWorkbenchView(viewName) {
         const valid = ['ledger', 'budget', 'treasury', 'forecast'];
+        const prevIdx = valid.indexOf(PFCC.state.activeView);
         const target = valid.includes(viewName) ? viewName : 'ledger';
+        const nextIdx = valid.indexOf(target);
         PFCC.state.activeView = target;
         PFCC.utils.safeSaveJSON('appActiveView', target);
 
@@ -44,9 +50,25 @@
         if (el.viewPanels) {
             el.viewPanels.forEach(panel => {
                 const isMatch = panel.getAttribute('data-view-panel') === target;
+                panel.classList.remove('liquid-enter-next', 'liquid-enter-prev');
                 panel.classList.toggle('active', isMatch);
                 panel.hidden = !isMatch;
+                if (isMatch && PFCC._bootstrapped && prevIdx !== -1 && prevIdx !== nextIdx) {
+                    panel.classList.add(nextIdx > prevIdx ? 'liquid-enter-next' : 'liquid-enter-prev');
+                }
             });
+        }
+
+        if (PFCC.liquid) {
+            if (el.workbenchBtns && el.workbenchBtns[0] && el.workbenchBtns[0].parentNode) {
+                PFCC.liquid.syncContainer(el.workbenchBtns[0].parentNode, Boolean(PFCC._bootstrapped));
+            }
+            const activePanel = el.viewPanels ? el.viewPanels.find(p => p.classList.contains('active')) : null;
+            if (activePanel) {
+                PFCC.compat.qsa('.segmented-group, .chart-toggle-group, .panel-tab-group', activePanel).forEach(track => {
+                    PFCC.liquid.syncContainer(track, false);
+                });
+            }
         }
 
         // Re-measure canvases once their container is visible
@@ -211,6 +233,10 @@
     }
 
     function dismissActiveOverlay() {
+        if (PFCC.picker && typeof PFCC.picker.isOpen === 'function' && PFCC.picker.isOpen()) {
+            PFCC.picker.close();
+            return true;
+        }
         const el = PFCC.dom;
         const actionModal = document.getElementById('action-dialog-modal');
         if (actionModal && actionModal.classList.contains('active')) {
@@ -356,6 +382,8 @@
         PFCC.importer.initImporter();
         PFCC.cli.initCli();
         PFCC.settings.initSettings();
+        if (PFCC.picker && typeof PFCC.picker.initPicker === 'function') PFCC.picker.initPicker();
+        if (PFCC.liquid && typeof PFCC.liquid.initLiquid === 'function') PFCC.liquid.initLiquid();
         PFCC.markets.initMarkets();
         initGlobalEvents();
         updateTimeframeUI();

@@ -23,6 +23,8 @@
     <script defer src="js/importer.js"></script>
     <script defer src="js/cli.js"></script>
     <script defer src="js/settings.js"></script>
+    <script defer src="js/liquid.js"></script>
+    <script defer src="js/picker.js"></script>
     <script defer src="js/main.js"></script>
 </head>
 <body>
@@ -1051,10 +1053,10 @@
                         <h3 class="config-subtitle spaced-subtitle">Android APK Updates</h3>
                         <div class="form-row">
                             <div class="form-group">
-                                <label>Installed APK Build</label>
+                                <label for="android-build-label">Installed APK Build</label>
                                 <input type="text" id="android-build-label" value="Local" readonly />
                             </div>
-                            <div class="form-group" style="justify-content: flex-end;">
+                            <div class="form-group android-update-actions">
                                 <button id="btn-check-android-update" type="button" class="btn btn-outline">Check for APK Update</button>
                             </div>
                         </div>

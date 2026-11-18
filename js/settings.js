@@ -3,12 +3,10 @@
 
     const PFCC = global.PFCC = global.PFCC || {};
 
-    function applySettings() {
-        const el = PFCC.dom;
-        const settings = PFCC.state.settings;
-        const theme = PFCC.themes.OS_THEMES[PFCC.themes.resolveThemeKey(settings.preset)] || PFCC.themes.OS_THEMES.obsidian;
+    function applyVisualThemeTokens(presetKey, font, radius, animSpeed) {
+        const theme = PFCC.themes.OS_THEMES[PFCC.themes.resolveThemeKey(presetKey)] || PFCC.themes.OS_THEMES.obsidian;
+        const glass = PFCC.themes.computeLiquidGlassTokens(theme);
 
-        if (el.displayName) el.displayName.textContent = settings.name;
         document.documentElement.setAttribute('data-theme-mode', theme.mode);
 
         const docStyle = document.documentElement.style;
@@ -24,9 +22,31 @@
         docStyle.setProperty('--color-green', theme.colorGreen);
         docStyle.setProperty('--color-red', theme.colorRed);
         docStyle.setProperty('--color-warn', theme.colorWarn);
-        docStyle.setProperty('--font-primary', PFCC.themes.normalizeFont(settings.font));
-        docStyle.setProperty('--ui-radius', PFCC.themes.normalizeRadius(settings.radius));
-        docStyle.setProperty('--anim-speed', settings.animSpeed || '0.16s');
+        docStyle.setProperty('--font-primary', PFCC.themes.normalizeFont(font));
+        docStyle.setProperty('--ui-radius', PFCC.themes.normalizeRadius(radius));
+        docStyle.setProperty('--anim-speed', animSpeed || '0.16s');
+
+        docStyle.setProperty('--glass-surface', glass.bgSurface);
+        docStyle.setProperty('--glass-elevated', glass.bgElevated);
+        docStyle.setProperty('--glass-header', glass.bgHeader);
+        docStyle.setProperty('--glass-control', glass.bgControl);
+        docStyle.setProperty('--glass-border', glass.borderSubtle);
+        docStyle.setProperty('--glass-border-accent', glass.borderAccent);
+        docStyle.setProperty('--glass-specular', glass.specular);
+        docStyle.setProperty('--glass-sheen', glass.sheen);
+        docStyle.setProperty('--glass-sheen-soft', glass.sheenSoft);
+        docStyle.setProperty('--glass-pill-bg', glass.pillBg);
+        docStyle.setProperty('--glass-pill-edge', glass.pillEdge);
+        docStyle.setProperty('--glass-shadow-card', glass.shadowCard);
+        docStyle.setProperty('--glass-shadow-float', glass.shadowFloat);
+    }
+
+    function applySettings() {
+        const el = PFCC.dom;
+        const settings = PFCC.state.settings;
+
+        if (el.displayName) el.displayName.textContent = settings.name;
+        applyVisualThemeTokens(settings.preset, settings.font, settings.radius, settings.animSpeed);
 
         const langDict = PFCC.i18n[settings.language] || PFCC.i18n.en;
         PFCC.compat.qsa('[data-i18n]').forEach(element => {
@@ -39,6 +59,13 @@
                 }
             }
         });
+
+        if (PFCC.picker && typeof PFCC.picker.syncAll === 'function') {
+            PFCC.picker.syncAll();
+        }
+        if (PFCC.liquid && typeof PFCC.liquid.syncAll === 'function') {
+            PFCC.liquid.syncAll();
+        }
     }
 
     function togglePrivacyMode() {
@@ -129,14 +156,31 @@
         if (el.holdingPaxg) el.holdingPaxg.value = PFCC.state.holdings.PAXG || '';
 
         renderRules();
+        if (PFCC.picker && typeof PFCC.picker.syncAll === 'function') {
+            PFCC.picker.syncAll();
+        }
         el.modal.classList.add('active');
         PFCC.audio.playSwooshSound();
-        setTimeout(() => { if (el.btnCloseSettings) el.btnCloseSettings.focus(); }, 40);
+        setTimeout(() => {
+            if (PFCC.liquid && typeof PFCC.liquid.syncContainer === 'function') {
+                const tabsWrap = el.modal ? el.modal.querySelector('.settings-tabs') : null;
+                if (tabsWrap) PFCC.liquid.syncContainer(tabsWrap, false);
+            }
+            const dialogPanel = el.modal ? el.modal.querySelector('.modal-content') : null;
+            if (dialogPanel) {
+                dialogPanel.setAttribute('tabindex', '-1');
+                dialogPanel.focus({ preventScroll: true });
+            } else if (el.btnCloseSettings) {
+                el.btnCloseSettings.focus();
+            }
+        }, 40);
     }
 
     function closeSettings() {
         const el = PFCC.dom;
         if (el.modal) el.modal.classList.remove('active');
+        const s = PFCC.state.settings;
+        applyVisualThemeTokens(s.preset, s.font, s.radius, s.animSpeed);
         if (PFCC.state.lastFocusedElement && typeof PFCC.state.lastFocusedElement.focus === 'function') {
             PFCC.state.lastFocusedElement.focus();
         }
@@ -337,30 +381,67 @@
             }
         }
 
+        function triggerThemePreview() {
+            applyVisualThemeTokens(
+                el.setPresetTheme ? el.setPresetTheme.value : PFCC.state.settings.preset,
+                el.setFont ? el.setFont.value : PFCC.state.settings.font,
+                el.setRadius ? el.setRadius.value : PFCC.state.settings.radius,
+                el.setAnimSpeed ? el.setAnimSpeed.value : PFCC.state.settings.animSpeed
+            );
+            if (PFCC.liquid && typeof PFCC.liquid.syncAll === 'function') {
+                PFCC.liquid.syncAll();
+            }
+        }
+
         if (el.setPresetTheme) {
             el.setPresetTheme.addEventListener('change', e => {
                 const theme = PFCC.themes.OS_THEMES[e.target.value];
                 if (theme) {
                     el.setFont.value = theme.font;
                     el.setRadius.value = theme.radius;
+                    if (PFCC.picker && typeof PFCC.picker.syncSelect === 'function') {
+                        PFCC.picker.syncSelect(el.setFont);
+                        PFCC.picker.syncSelect(el.setRadius);
+                    }
                     PFCC.audio.playSwooshSound();
                 }
+                triggerThemePreview();
             });
         }
 
-        PFCC.compat.qsa('.tab-btn').forEach(btn => {
+        [el.setFont, el.setRadius, el.setAnimSpeed].forEach(ctrl => {
+            if (!ctrl) return;
+            ctrl.addEventListener('change', () => {
+                triggerThemePreview();
+            });
+        });
+
+        const settingsTabBtns = PFCC.compat.qsa('.tab-btn');
+        settingsTabBtns.forEach((btn, nextIdx) => {
             btn.addEventListener('click', e => {
-                PFCC.audio.playClickSound();
                 const currentBtn = e.currentTarget;
-                PFCC.compat.qsa('.tab-btn').forEach(b => {
+                if (currentBtn.classList.contains('active')) return;
+                PFCC.audio.playClickSound();
+                const prevIdx = settingsTabBtns.findIndex(b => b.classList.contains('active'));
+                settingsTabBtns.forEach(b => {
                     b.classList.remove('active');
                     b.setAttribute('aria-selected', 'false');
                 });
-                PFCC.compat.qsa('.tab-content').forEach(c => c.classList.remove('active'));
+                PFCC.compat.qsa('.tab-content').forEach(c => {
+                    c.classList.remove('active', 'liquid-enter-next', 'liquid-enter-prev');
+                });
                 currentBtn.classList.add('active');
                 currentBtn.setAttribute('aria-selected', 'true');
                 const targetTab = document.getElementById(`tab-${currentBtn.dataset.tab}`);
-                if (targetTab) targetTab.classList.add('active');
+                if (targetTab) {
+                    targetTab.classList.add('active');
+                    if (prevIdx !== -1) {
+                        targetTab.classList.add(nextIdx >= prevIdx ? 'liquid-enter-next' : 'liquid-enter-prev');
+                    }
+                }
+                if (PFCC.liquid && typeof PFCC.liquid.syncContainer === 'function') {
+                    PFCC.liquid.syncContainer(currentBtn.parentNode, true);
+                }
             });
         });
 
@@ -394,6 +475,9 @@
                 el.ruleAmountThreshold.value = '';
                 el.ruleAssignCategory.value = '';
                 el.ruleAssignTags.value = '';
+                if (PFCC.picker && typeof PFCC.picker.syncSelect === 'function') {
+                    PFCC.picker.syncSelect(el.ruleAssignCategory);
+                }
                 renderRules();
                 PFCC.audio.playSuccessSound();
             });

@@ -548,6 +548,9 @@
             btn.addEventListener('click', e => {
                 el.chartTabBtns.forEach(b => b.classList.remove('active'));
                 e.currentTarget.classList.add('active');
+                if (PFCC.liquid && typeof PFCC.liquid.syncContainer === 'function') {
+                    PFCC.liquid.syncContainer(e.currentTarget.parentNode, true);
+                }
                 PFCC.state.activeUpperChart = e.currentTarget.getAttribute('data-chart');
                 el.chartMainTitle.textContent = PFCC.state.activeUpperChart === 'pace'
                     ? 'Cumulative Spend vs. Linear Budget Pace'

@@ -48,6 +48,10 @@
         el.amount.value = Math.abs(t.amount);
         el.type.value = t.amount < 0 ? 'expense' : 'income';
         el.category.value = t.category;
+        if (PFCC.picker && typeof PFCC.picker.syncSelect === 'function') {
+            PFCC.picker.syncSelect(el.type);
+            PFCC.picker.syncSelect(el.category);
+        }
         el.date.value = t.date;
         el.tags.value = (t.tags || []).join(' ');
 
@@ -63,6 +67,7 @@
         setDetailsDrawerOpen(true);
         el.editBanner.style.display = 'flex';
         el.btnCancelEdit.style.display = 'inline-flex';
+        if (el.btnSubmitTx && el.btnSubmitTx.parentNode) el.btnSubmitTx.parentNode.classList.add('is-editing');
         el.btnSubmitTx.textContent = 'Update';
         el.formHeaderTitle.textContent = 'Update Record';
 
@@ -77,6 +82,7 @@
         el.editId.value = '';
         el.editBanner.style.display = 'none';
         el.btnCancelEdit.style.display = 'none';
+        if (el.btnSubmitTx && el.btnSubmitTx.parentNode) el.btnSubmitTx.parentNode.classList.remove('is-editing');
         el.btnSubmitTx.textContent = langDict.btn_commit || 'Commit';
         el.formHeaderTitle.textContent = langDict.commit_transaction || 'Quick Entry';
         el.text.value = '';
@@ -482,6 +488,9 @@
             btn.addEventListener('click', e => {
                 el.filterBtns.forEach(b => b.classList.remove('active'));
                 e.currentTarget.classList.add('active');
+                if (PFCC.liquid && typeof PFCC.liquid.syncContainer === 'function') {
+                    PFCC.liquid.syncContainer(e.currentTarget.parentNode, true);
+                }
                 PFCC.state.ledgerFilter.type = e.currentTarget.getAttribute('data-type');
                 PFCC.audio.playClickSound();
                 renderLedger();
@@ -569,10 +578,15 @@
                 el.tabBtnIous.classList.remove('active');
                 el.subsView.style.display = 'block';
                 el.iousView.style.display = 'none';
+                el.subsView.classList.remove('liquid-enter-next', 'liquid-enter-prev');
+                if (el.subsView.offsetWidth >= 0) el.subsView.classList.add('liquid-enter-prev');
                 el.subBurnBadge.style.display = 'inline-flex';
                 el.iouSummaryBadge.style.display = 'none';
                 el.btnToggleSubForm.style.display = 'inline-flex';
                 el.btnToggleIouForm.style.display = 'none';
+                if (PFCC.liquid && typeof PFCC.liquid.syncContainer === 'function') {
+                    PFCC.liquid.syncContainer(el.tabBtnSubs.parentNode, true);
+                }
                 PFCC.audio.playClickSound();
             });
 
@@ -581,11 +595,16 @@
                 el.tabBtnSubs.classList.remove('active');
                 el.iousView.style.display = 'block';
                 el.subsView.style.display = 'none';
+                el.iousView.classList.remove('liquid-enter-next', 'liquid-enter-prev');
+                if (el.iousView.offsetWidth >= 0) el.iousView.classList.add('liquid-enter-next');
                 el.iouSummaryBadge.style.display = 'inline-flex';
                 el.subBurnBadge.style.display = 'none';
                 el.btnToggleIouForm.style.display = 'inline-flex';
                 el.btnToggleSubForm.style.display = 'none';
                 renderIous();
+                if (PFCC.liquid && typeof PFCC.liquid.syncContainer === 'function') {
+                    PFCC.liquid.syncContainer(el.tabBtnIous.parentNode, true);
+                }
                 PFCC.audio.playClickSound();
             });
         }

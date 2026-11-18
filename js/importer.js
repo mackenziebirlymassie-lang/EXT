@@ -162,6 +162,10 @@
             PFCC.state.csvListenersBound = true;
         }
 
+        if (PFCC.picker && typeof PFCC.picker.syncSelect === 'function') {
+            [el.mapDate, el.mapDesc, el.mapAmount, el.mapCategory].forEach(sel => PFCC.picker.syncSelect(sel));
+        }
+
         renderCsvPreview();
     }
 

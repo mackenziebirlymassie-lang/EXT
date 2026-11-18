@@ -139,10 +139,65 @@
         return "'JetBrains Mono', monospace";
     }
 
+    function hexToRgbTuple(hex) {
+        if (!hex || typeof hex !== 'string' || hex.charAt(0) !== '#') return [83, 104, 120];
+        let clean = hex.slice(1);
+        if (clean.length === 3) clean = clean.split('').map(c => c + c).join('');
+        const num = parseInt(clean, 16);
+        if (Number.isNaN(num)) return [83, 104, 120];
+        return [(num >> 16) & 255, (num >> 8) & 255, num & 255];
+    }
+
+    function rgbaTuple(rgb, alpha) {
+        return `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${alpha})`;
+    }
+
+    function blendRgb(baseRgb, tintRgb, weight) {
+        const w = Math.max(0, Math.min(1, weight));
+        return [
+            Math.round(baseRgb[0] * (1 - w) + tintRgb[0] * w),
+            Math.round(baseRgb[1] * (1 - w) + tintRgb[1] * w),
+            Math.round(baseRgb[2] * (1 - w) + tintRgb[2] * w)
+        ];
+    }
+
+    function computeLiquidGlassTokens(theme) {
+        const activeTheme = theme || OS_THEMES.obsidian;
+        const isLight = activeTheme.mode === 'light';
+        const mainRgb = hexToRgbTuple(activeTheme.bgMain);
+        const surfRgb = hexToRgbTuple(activeTheme.bgSurface);
+        const accentFillRgb = hexToRgbTuple(activeTheme.accentFill);
+        const accentTextRgb = hexToRgbTuple(activeTheme.accentText);
+
+        const tintedSurface = blendRgb(surfRgb, accentFillRgb, isLight ? 0.03 : 0.06);
+        const tintedElevated = blendRgb(surfRgb, accentFillRgb, isLight ? 0.05 : 0.10);
+
+        return {
+            bgSurface: rgbaTuple(tintedSurface, isLight ? 0.86 : 0.78),
+            bgElevated: rgbaTuple(tintedElevated, isLight ? 0.94 : 0.88),
+            bgHeader: rgbaTuple(mainRgb, isLight ? 0.74 : 0.68),
+            bgControl: rgbaTuple(mainRgb, isLight ? 0.78 : 0.62),
+            borderSubtle: isLight ? 'rgba(15, 23, 42, 0.11)' : 'rgba(255, 255, 255, 0.09)',
+            borderAccent: rgbaTuple(accentTextRgb, isLight ? 0.36 : 0.32),
+            specular: isLight ? 'rgba(255, 255, 255, 0.88)' : 'rgba(255, 255, 255, 0.12)',
+            sheen: rgbaTuple(accentFillRgb, isLight ? 0.09 : 0.17),
+            sheenSoft: rgbaTuple(accentTextRgb, isLight ? 0.06 : 0.09),
+            pillBg: rgbaTuple(accentFillRgb, isLight ? 0.92 : 0.82),
+            pillEdge: rgbaTuple(accentTextRgb, isLight ? 0.48 : 0.45),
+            shadowCard: isLight
+                ? '0 4px 16px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.04)'
+                : '0 8px 24px rgba(0, 0, 0, 0.34), 0 1px 3px rgba(0, 0, 0, 0.22)',
+            shadowFloat: isLight
+                ? '0 16px 42px rgba(15, 23, 42, 0.14), 0 4px 12px rgba(15, 23, 42, 0.08)'
+                : '0 18px 48px rgba(0, 0, 0, 0.56), 0 4px 14px rgba(0, 0, 0, 0.32)'
+        };
+    }
+
     PFCC.themes = {
         OS_THEMES,
         resolveThemeKey,
         normalizeRadius,
-        normalizeFont
+        normalizeFont,
+        computeLiquidGlassTokens
     };
 })(window);

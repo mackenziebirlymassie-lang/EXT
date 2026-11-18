@@ -65,9 +65,25 @@ function loadAppModules(mockStorageData = {}, { throwOnSave = false } = {}) {
             get firstChild() {
                 return this.children[0] || null;
             },
+            get nextSibling() {
+                if (!this.parentNode || !Array.isArray(this.parentNode.children)) return null;
+                const idx = this.parentNode.children.indexOf(this);
+                return idx >= 0 && idx + 1 < this.parentNode.children.length ? this.parentNode.children[idx + 1] : null;
+            },
             appendChild(child) {
                 child.parentNode = this;
                 this.children.push(child);
+                return child;
+            },
+            insertBefore(child, refNode) {
+                child.parentNode = this;
+                if (!refNode) {
+                    this.children.push(child);
+                    return child;
+                }
+                const idx = this.children.indexOf(refNode);
+                if (idx === -1) this.children.push(child);
+                else this.children.splice(idx, 0, child);
                 return child;
             },
             setAttribute(k, v) {
@@ -171,7 +187,7 @@ function loadAppModules(mockStorageData = {}, { throwOnSave = false } = {}) {
     sandbox.window = sandbox;
     sandbox.globalThis = sandbox;
 
-    const files = ['compat.js', 'icons.js', 'i18n.js', 'themes.js', 'state.js', 'audio.js', 'markets.js', 'charts.js', 'ledger.js', 'planning.js', 'importer.js', 'cli.js', 'settings.js', 'main.js'];
+    const files = ['compat.js', 'icons.js', 'i18n.js', 'themes.js', 'state.js', 'audio.js', 'markets.js', 'charts.js', 'ledger.js', 'planning.js', 'importer.js', 'cli.js', 'settings.js', 'liquid.js', 'picker.js', 'main.js'];
     for (const file of files) {
         const code = fs.readFileSync(path.join(rootDir, 'js', file), 'utf8');
         vm.runInNewContext(code, sandbox, { filename: file });
@@ -671,4 +687,35 @@ test('EXT brand identity is applied across web, Android launcher, and release up
     assert.equal(java.includes('EXT_BUILD:'), true, 'MainActivity should parse EXT_BUILD marker');
     assert.equal(java.includes('PFCC_BUILD:'), true, 'MainActivity should retain PFCC_BUILD marker');
     assert.equal(settingsJs.includes('ext_backup_'), true, 'JSON backup filename should use ext_backup_ prefix');
+});
+
+test('Liquid Glass tokens derive per theme and Custom Picker + Liquid motion modules are wired', () => {
+    const { PFCC } = loadAppModules();
+    assert.equal(typeof PFCC.themes.computeLiquidGlassTokens, 'function');
+    assert.equal(typeof PFCC.liquid.syncContainer, 'function');
+    assert.equal(typeof PFCC.liquid.syncAll, 'function');
+    assert.equal(typeof PFCC.picker.enhanceAll, 'function');
+    assert.equal(typeof PFCC.picker.open, 'function');
+    assert.equal(typeof PFCC.picker.close, 'function');
+
+    const keys = Object.keys(PFCC.themes.OS_THEMES);
+    assert.deepStrictEqual([...keys], ['obsidian', 'crimson', 'tundra', 'neonpetal', 'alabaster']);
+    for (const k of keys) {
+        const glass = PFCC.themes.computeLiquidGlassTokens(PFCC.themes.OS_THEMES[k]);
+        assert.ok(glass.bgSurface.startsWith('rgba('), `${k} bgSurface must be rgba`);
+        assert.ok(glass.bgElevated.startsWith('rgba('), `${k} bgElevated must be rgba`);
+        assert.ok(glass.pillBg.startsWith('rgba('), `${k} pillBg must be rgba`);
+        assert.ok(glass.specular.startsWith('rgba('), `${k} specular must be rgba`);
+    }
+
+    const html = fs.readFileSync(path.join(rootDir, 'index.html'), 'utf8');
+    assert.equal(html.includes('<script defer src="js/liquid.js"></script>'), true, 'index.html must load js/liquid.js');
+    assert.equal(html.includes('<script defer src="js/picker.js"></script>'), true, 'index.html must load js/picker.js');
+    assert.equal(html.includes('style="justify-content: flex-end;"'), false, 'Inline justify-content should be moved to CSS class');
+
+    const css = fs.readFileSync(path.join(rootDir, 'style.css'), 'utf8');
+    assert.equal(css.includes('.liquid-pill-indicator'), true, 'style.css must style sliding liquid pill indicator');
+    assert.equal(css.includes('.liquid-picker-sheet'), true, 'style.css must style custom liquid option picker sheet');
+    assert.equal(css.includes('.liquid-enter-next'), true, 'style.css must include directional liquid enter animation');
+    assert.equal(css.includes('.custom-select-trigger'), true, 'style.css must style custom select triggers');
 });
