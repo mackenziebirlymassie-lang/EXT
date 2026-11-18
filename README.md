@@ -6,33 +6,36 @@ Local-first expense tracker, personal treasury, cashflow ledger, and runway cons
 
 - **100% Local-First & Private**: All ledgers, recurring commitments, rules, receipts, and preferences stay on your device (`localStorage`). No accounts, telemetry, or cloud sync servers required.
 - **Zero Runtime Dependencies**: Custom Hi-DPI `<canvas>` charts ([js/charts.js](js/charts.js)), inline SVG icon engine ([js/icons.js](js/icons.js)), CSV parser ([js/importer.js](js/importer.js)), and Web Audio feedback ([js/audio.js](js/audio.js)) run offline without Chart.js or icon CDNs.
-- **Native-Ready Android 7.0+ Shell**: Ships with a zero-bloat Android `WebView` project in [android/](android/) supporting native file pickers, Storage Access Framework exports, and hardware back-button modal handling.
+- **Native-Ready Android 7.0+ Shell**: Ships with a zero-bloat Android `WebView` project in [android/](android/) supporting native file pickers, Storage Access Framework exports, in-place APK auto-updates, and hardware back-button navigation across views, modals, and pickers.
+- **Theme-Adaptive Liquid Glass UI & Motion**: Dynamic per-theme translucent surfaces, top-edge specular highlights, directional liquid view/tab transitions, sliding liquid pill indicators ([js/liquid.js](js/liquid.js)), and a custom Liquid Glass bottom-sheet option & theme picker ([js/picker.js](js/picker.js)).
 
 ## Core Architecture (4-View Workbench)
 
 Switch views via header tabs or keyboard (`Alt+1` through `Alt+4`):
 
 1. **01 Ledger & Ops**
-   - **1-Row Quick Entry**: Rapid date, type, description, category, and amount entry with expandable `#tags` and client-side compressed image receipts (`max 800px` JPEG).
-   - **Tabular Running Balance Ledger**: Chronological balance tracking per row, type/category/sort filtering, full-text search, inline editing, and lightbox receipt viewer.
+   - **Collapsible Quick Entry**: Rapid date, type, description, category, and amount entry with expandable `#tags`, client-side compressed image receipts (`max 800px` JPEG), and a mobile `Hide`/`Add` collapse toggle.
+   - **Tabular Running Balance Ledger & 3-Band Mobile Cards**: Chronological balance tracking per row, type/category/sort filtering, full-text search, inline editing, lightbox receipt viewer, and responsive 3-band card reflow on mobile screens.
    - **Commitments Panel**: Toggleable **Subscriptions & SaaS** (monthly/yearly burn calculation + one-click ledger commit) and **Split & IOUs** (receivables/payables settlement).
 2. **02 Budget & Burn**
-   - **Operating Ratios**: Live Savings Rate, Fixed Burn Ratio, Tax Reserve Coverage, and Survival Runway metrics.
-   - **Interactive Hi-DPI Charts**: Switch between **Budget Pace** (Cumulative Spend vs. Linear Budget Target) and **6-Month Cash Flow** (Income vs. Expense bars).
+   - **Operating Ratios**: Live Savings Rate, Fixed Burn Ratio, Tax Reserve Coverage, and Survival Runway metrics in a compact 2x2 mobile grid.
+   - **Interactive Hi-DPI Charts**: Switch between **Budget Pace** (Cumulative Spend vs. Linear Budget Target) and **6-Month Cash Flow** (Income vs. Expense bars) with both pointer hover and touch-scrubbing tooltips.
    - **Allocation & Envelopes**: Ranked category spend breakdown and per-category monthly spending limits.
 3. **03 Treasury & FIRE**
    - **Multi-Source Market Ticker**: Tracks `PAXG`, `BTC`, `ETH`, and `SOL` with automatic multi-provider failover and cached offline state.
    - **Freelancer Tax Reserve & Safe-to-Spend**: Configurable reserve percentage locked against liquid cashflow.
    - **Savings Vaults, Debt Payoff & Activity Heatmap**: Progress vaults, Snowball vs. Avalanche debt payoff timelines, and annual daily cashflow density grid.
 4. **04 Forecast Lab**
-   - Multi-variable net worth compounding simulator across `1Y`, `3Y`, `5Y`, and `10Y` horizons (`0%` to custom CAGR) with baseline vs. simulated trajectory plotting.
+   - Multi-variable net worth compounding simulator across `1Y`, `3Y`, `5Y`, and `10Y` horizons (`0%` to custom CAGR) with baseline vs. simulated trajectory plotting (`K` / `M` / `B` / `T` scale formatting).
 
-## Power-User Tools & Themes
+## Power-User Tools, Liquid Glass & Themes
 
+- **Custom Liquid Glass Option & Theme Picker ([js/picker.js](js/picker.js))**: Enhances all 20 `<select>` dropdowns with a theme-matched Liquid Glass bottom sheet (on mobile) or popover (on desktop), featuring live-preview Master Theme swatch cards, live typeface specimens, `<optgroup>` currency badges, and instant option filtering.
+- **Liquid Morphing & Directional Transitions ([js/liquid.js](js/liquid.js))**: Sliding Liquid Glass active pills across the bottom navigation dock, settings tab bar, and all segmented controls, paired with directional pane transitions (`cubic-bezier(0.16, 1, 0.3, 1)`) and full `prefers-reduced-motion` support.
 - **Command Palette (`Ctrl+K` / `Cmd+K`)**: Quick navigation, privacy toggle, CSV/JSON actions, and inline ledger entry commands.
 - **Privacy Blur (`Ctrl+L` / `Cmd+L`)**: Instant `-webkit-filter` / `filter: blur(8px)` masking across balances and metrics.
 - **CSV Import / Export & Auto-Rules**: Column-mapped bank CSV importer (`McDonald's` apostrophe-safe, timezone-safe `YYYY-MM-DD` dates) plus keyword/amount auto-categorization rules.
-- **5 Curated Palettes**: Obsidian Chrome (default), Classic Crimson, Electric Tundra, Neon Petal, and Alabaster Daylight.
+- **5 Curated Palettes**: Obsidian Chrome (default), Classic Crimson, Electric Tundra, Neon Petal, and Alabaster Daylight (WCAG AA verified).
 - **7 Languages**: `en`, `fr`, `es`, `de`, `id`, `ja`, `zh` plus multi-currency `Intl.NumberFormat` output.
 
 ## Keyboard Shortcuts
@@ -59,7 +62,7 @@ Switch views via header tabs or keyboard (`Alt+1` through `Alt+4`):
 │   ├── compat.js               # Chromium 51+ polyfills (pad2, qsa, matches, closest, remove, values)
 │   ├── icons.js                # Zero-dependency inline SVG sprite helper
 │   ├── i18n.js                 # 7-language dictionary and DOM translation bindings
-│   ├── themes.js               # 5 colorways + legacy setting/icon normalizers
+│   ├── themes.js               # 5 colorways, Liquid Glass token generator, legacy normalizers
 │   ├── state.js                # State store, localStorage resilience, SAF/data-URI file downloader
 │   ├── audio.js                # Web Audio API synth tones with webkitAudioContext fallback
 │   ├── markets.js              # Promise-based multi-source crypto/gold feed with 5s timeout fallback
@@ -68,8 +71,10 @@ Switch views via header tabs or keyboard (`Alt+1` through `Alt+4`):
 │   ├── planning.js             # Budget envelopes, ratios, advisor, FIRE/tax, vaults, debt payoff, simulator
 │   ├── importer.js             # Stateful CSV parser, column mapper, timezone-safe YYYY-MM-DD normalizer
 │   ├── cli.js                  # Command palette parser and modal controls
-│   ├── settings.js             # Preferences, JSON backup/restore sanitizer, rule builder, shortcuts modal
-│   └── main.js                 # Bootstrap sequence, global shortcuts, Android back-button handler
+│   ├── settings.js             # Preferences, live theme preview, JSON backup/restore sanitizer, rules
+│   ├── liquid.js               # Sliding Liquid Glass pill indicator & track synchronization
+│   ├── picker.js               # Custom Liquid Glass bottom-sheet / popover option & theme picker
+│   └── main.js                 # Bootstrap sequence, directional view transitions, Android back handler
 ├── android/                    # Pure Android SDK (minSdk 24, targetSdk 35) native WebView APK wrapper
 ├── scripts/sync-android.mjs    # Copies root web assets into android/app/src/main/assets/www/
 ├── tests/verify.mjs            # Automated unit, compatibility, XSS/sanitizer, and scaffold tests
