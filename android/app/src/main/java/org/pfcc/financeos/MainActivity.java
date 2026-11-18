@@ -2,6 +2,7 @@ package org.pfcc.financeos;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.app.KeyguardManager;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.graphics.Color;
@@ -48,6 +49,7 @@ public class MainActivity extends Activity {
     private static final int REQ_FILE_PICKER = 1001;
     private static final int REQ_CREATE_DOCUMENT = 1002;
     private static final int REQ_UNKNOWN_SOURCES = 1003;
+    private static final int REQ_DEVICE_CREDENTIAL = 1004;
 
     private final ExecutorService ioExecutor = Executors.newSingleThreadExecutor();
     private WebView webView;
@@ -55,12 +57,31 @@ public class MainActivity extends Activity {
     private byte[] pendingSaveBytes;
     private boolean pendingApkInstallReady;
     private boolean startupUpdateChecked;
+    private String pendingShortcutAction;
+
+    private String sanitizeShortcutAction(Intent intent) {
+        if (intent == null) return null;
+        String raw = intent.getStringExtra("ext_shortcut");
+        if ("expense".equals(raw) || "budget".equals(raw) || "forecast".equals(raw)) {
+            return raw;
+        }
+        return null;
+    }
+
+    private void dispatchShortcutToWeb(String action) {
+        if (action == null || webView == null) return;
+        webView.evaluateJavascript(
+            "if(window.PFCC&&PFCC.handleAndroidShortcut){PFCC.handleAndroidShortcut(" + JSONObject.quote(action) + ");}",
+            null
+        );
+    }
 
     @SuppressLint("SetJavaScriptEnabled")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         configureSystemBars();
+        pendingShortcutAction = sanitizeShortcutAction(getIntent());
 
         webView = new WebView(this);
         webView.setBackgroundColor(Color.parseColor("#0A0A0A"));
@@ -93,6 +114,11 @@ public class MainActivity extends Activity {
             @Override
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
+                if (pendingShortcutAction != null && url != null && url.startsWith("file:///android_asset/")) {
+                    String shortcut = pendingShortcutAction;
+                    pendingShortcutAction = null;
+                    dispatchShortcutToWeb(shortcut);
+                }
                 if (BuildConfig.ENABLE_SELF_UPDATE && !startupUpdateChecked && url != null && url.startsWith("file:///android_asset/")) {
                     startupUpdateChecked = true;
                     checkForGitHubUpdate(false);
@@ -427,6 +453,19 @@ public class MainActivity extends Activity {
             return;
         }
 
+        if (requestCode == REQ_DEVICE_CREDENTIAL) {
+            final boolean unlocked = (resultCode == RESULT_OK);
+            runOnUiThread(() -> {
+                if (webView != null) {
+                    webView.evaluateJavascript(
+                        "if(window.PFCC&&PFCC.onDeviceUnlockResult){PFCC.onDeviceUnlockResult(" + (unlocked ? "true" : "false") + ");}",
+                        null
+                    );
+                }
+            });
+            return;
+        }
+
         if (requestCode == REQ_CREATE_DOCUMENT) {
             byte[] payload = pendingSaveBytes;
             pendingSaveBytes = null;
@@ -527,6 +566,45 @@ public class MainActivity extends Activity {
         public void startApkUpdate(String downloadUrl) {
             if (!BuildConfig.ENABLE_SELF_UPDATE) return;
             downloadAndInstallApk(downloadUrl);
+        }
+
+        @JavascriptInterface
+        public boolean isDeviceLockSupported() {
+            KeyguardManager km = (KeyguardManager) getSystemService(KEYGUARD_SERVICE);
+            return km != null && km.isKeyguardSecure();
+        }
+
+        @JavascriptInterface
+        @SuppressWarnings("deprecation")
+        public void requestDeviceUnlock() {
+            runOnUiThread(() -> {
+                KeyguardManager km = (KeyguardManager) getSystemService(KEYGUARD_SERVICE);
+                if (km == null || !km.isKeyguardSecure()) {
+                    Toast.makeText(MainActivity.this, "No screen lock or biometrics configured on this device.", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                Intent intent = km.createConfirmDeviceCredentialIntent(
+                    "Unlock EXT",
+                    "Verify your identity to access local financial records."
+                );
+                if (intent != null) {
+                    startActivityForResult(intent, REQ_DEVICE_CREDENTIAL);
+                }
+            });
+        }
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        String shortcut = sanitizeShortcutAction(intent);
+        if (shortcut != null) {
+            if (webView != null) {
+                dispatchShortcutToWeb(shortcut);
+            } else {
+                pendingShortcutAction = shortcut;
+            }
         }
     }
 }

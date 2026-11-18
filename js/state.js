@@ -104,6 +104,31 @@
         v.icon = PFCC.icons.normalizeVaultIcon(v.icon);
     });
 
+    const DEFAULT_CATEGORIES = ['Housing', 'Software', 'Food', 'Transport', 'Investments', 'Salary', 'Other'];
+    const CATEGORY_LABELS = {
+        Housing: 'Housing & Utilities',
+        Software: 'Software & Tech',
+        Food: 'Food & Dining',
+        Transport: 'Transportation',
+        Investments: 'Investments',
+        Salary: 'Salary & Wages',
+        Other: 'Other'
+    };
+
+    const loadedCategoriesRaw = safeLoadJSON('appCategories', null);
+    const loadedCategories = (Array.isArray(loadedCategoriesRaw) && loadedCategoriesRaw.length > 0)
+        ? loadedCategoriesRaw.filter(c => typeof c === 'string' && c.trim().length > 0).map(c => c.trim())
+        : DEFAULT_CATEGORIES.slice();
+
+    const loadedPresetsRaw = safeLoadJSON('appQuickPresets', null);
+    const loadedPresets = Array.isArray(loadedPresetsRaw)
+        ? loadedPresetsRaw
+        : [
+            { id: 'pre-1', text: 'Coffee', amount: 4.5, type: 'expense', category: 'Food' },
+            { id: 'pre-2', text: 'Lunch', amount: 12, type: 'expense', category: 'Food' },
+            { id: 'pre-3', text: 'Rideshare', amount: 8, type: 'expense', category: 'Transport' }
+        ];
+
     const savedView = safeLoadJSON('appActiveView', 'ledger');
     const validViews = ['ledger', 'budget', 'treasury', 'forecast'];
 
@@ -112,8 +137,8 @@
     PFCC.state = {
         transactions: safeLoadJSON('appTransactions', []),
         subscriptions: safeLoadJSON('appSubscriptions', [
-            { id: 'sub-1', name: 'Code Assistant Pro', amount: 10.00, billingCycle: 'monthly', category: 'Software' },
-            { id: 'sub-2', name: 'VPS Cloud Server', amount: 24.00, billingCycle: 'monthly', category: 'Housing' }
+            { id: 'sub-1', name: 'Code Assistant Pro', amount: 10.00, billingCycle: 'monthly', billingDay: 5, category: 'Software' },
+            { id: 'sub-2', name: 'VPS Cloud Server', amount: 24.00, billingCycle: 'monthly', billingDay: 15, category: 'Housing' }
         ]),
         ious: safeLoadJSON('appIous', [
             { id: 'iou-1', person: 'Alice', amount: 45.00, direction: 'receivable', desc: 'Team lunch split', settled: false },
@@ -126,6 +151,12 @@
         isPrivacyActive: false,
         soundEnabled: safeLoadJSON('appSoundEnabled', true) !== false,
         liveMarketsEnabled: safeLoadJSON('appLiveMarketsEnabled', true) !== false,
+        lockHash: safeLoadJSON('appLockHash', ''),
+        lastBackupAt: safeLoadJSON('appLastBackupAt', 0),
+        categories: loadedCategories,
+        quickPresets: loadedPresets,
+        selectedLedgerIds: [],
+        bulkSelectActive: false,
         parsedCsvRows: [],
         csvListenersBound: false,
         savingsVaults: loadedVaults,
@@ -152,6 +183,73 @@
         },
         lastFocusedElement: null
     };
+
+    function isTransferTx(t) {
+        return Boolean(t && (t.isTransfer || t.type === 'transfer'));
+    }
+
+    function getExpenseAmount(t) {
+        if (!t || isTransferTx(t)) return 0;
+        return t.amount < 0 ? Math.abs(t.amount) : 0;
+    }
+
+    function getIncomeAmount(t) {
+        if (!t || isTransferTx(t)) return 0;
+        return t.amount > 0 ? t.amount : 0;
+    }
+
+    function getTransferAmount(t) {
+        if (!isTransferTx(t)) return 0;
+        const raw = t.transferAmount !== undefined ? t.transferAmount : t.amount;
+        return Math.abs(Number(raw) || 0);
+    }
+
+    function formatCategoryLabel(cat) {
+        return CATEGORY_LABELS[cat] || cat;
+    }
+
+    function getAllCategories() {
+        const list = (PFCC.state && Array.isArray(PFCC.state.categories) && PFCC.state.categories.length > 0)
+            ? PFCC.state.categories
+            : DEFAULT_CATEGORIES;
+        return list.slice();
+    }
+
+    function syncCategorySelects() {
+        const cats = getAllCategories();
+        const selectSpecs = [
+            { id: 'category', prefixOpt: null },
+            { id: 'ledger-category-filter', prefixOpt: { value: 'all', text: 'All Categories' } },
+            { id: 'sub-category', prefixOpt: null },
+            { id: 'rule-assign-category', prefixOpt: { value: '', text: 'Keep original' } },
+            { id: 'bulk-category-select', prefixOpt: null }
+        ];
+
+        selectSpecs.forEach(spec => {
+            const sel = document.getElementById(spec.id);
+            if (!sel || typeof document.createElement !== 'function') return;
+            const prevVal = sel.value;
+            sel.textContent = '';
+            if (spec.prefixOpt) {
+                const pOpt = document.createElement('option');
+                pOpt.value = spec.prefixOpt.value;
+                pOpt.textContent = spec.prefixOpt.text;
+                sel.appendChild(pOpt);
+            }
+            cats.forEach(cat => {
+                const opt = document.createElement('option');
+                opt.value = cat;
+                opt.textContent = formatCategoryLabel(cat);
+                sel.appendChild(opt);
+            });
+            if (prevVal && (cats.includes(prevVal) || (spec.prefixOpt && prevVal === spec.prefixOpt.value))) {
+                sel.value = prevVal;
+            }
+            if (PFCC.picker && typeof PFCC.picker.syncSelect === 'function') {
+                PFCC.picker.syncSelect(sel);
+            }
+        });
+    }
 
     function formatCurrency(val) {
         const num = Number(val) || 0;
@@ -223,16 +321,27 @@
         return map;
     }
 
-    function showToast(message, type) {
+    function showToast(message, type, opts) {
         const container = document.getElementById('toast-container');
         if (!container) return;
         const kind = type || 'info';
+        const options = opts || {};
         const toast = createEl('div', `toast-item toast-${kind}`);
         toast.setAttribute('role', kind === 'error' ? 'alert' : 'status');
 
         const iconName = kind === 'error' ? 'alert' : (kind === 'success' ? 'check' : 'activity');
         toast.appendChild(PFCC.icons.create(iconName, 15));
         toast.appendChild(createEl('span', 'toast-message', message));
+
+        if (options.actionLabel && typeof options.onAction === 'function') {
+            const actBtn = createEl('button', 'btn btn-outline btn-sm toast-action-btn', options.actionLabel);
+            actBtn.type = 'button';
+            actBtn.addEventListener('click', () => {
+                options.onAction();
+                if (toast.parentNode) toast.remove();
+            });
+            toast.appendChild(actBtn);
+        }
 
         const dismissBtn = createEl('button', 'toast-close');
         dismissBtn.type = 'button';
@@ -247,7 +356,7 @@
         container.appendChild(toast);
         setTimeout(() => {
             if (toast.parentNode) toast.remove();
-        }, 3200);
+        }, options.durationMs || (options.actionLabel ? 5000 : 3200));
     }
 
     function openActionDialog(opts) {
@@ -268,14 +377,23 @@
         confirmBtn.textContent = opts.confirmLabel || 'Confirm';
         confirmBtn.className = opts.danger ? 'btn btn-danger' : 'btn btn-primary btn-inline-auto';
 
+        const inputType = opts.inputType || 'number';
         if (opts.input) {
             inputWrap.style.display = 'block';
             inputLabel.textContent = opts.inputLabel || 'Amount';
+            inputEl.type = inputType;
+            inputEl.placeholder = opts.placeholder || '';
             inputEl.value = opts.defaultValue !== undefined ? String(opts.defaultValue) : '';
-            inputEl.min = opts.min !== undefined ? String(opts.min) : '0';
-            inputEl.step = opts.step || '0.01';
+            if (inputType === 'number') {
+                inputEl.min = opts.min !== undefined ? String(opts.min) : '0';
+                inputEl.step = opts.step || '0.01';
+            } else {
+                inputEl.removeAttribute('min');
+                inputEl.removeAttribute('step');
+            }
         } else {
             inputWrap.style.display = 'none';
+            inputEl.type = 'number';
             inputEl.value = '';
         }
 
@@ -291,14 +409,25 @@
 
         confirmBtn.onclick = () => {
             if (opts.input) {
-                const val = parseFloat(inputEl.value);
-                if (Number.isNaN(val) || val <= 0) {
-                    showToast('Please enter a valid positive number.', 'error');
-                    inputEl.focus();
-                    return;
+                if (inputType === 'number') {
+                    const val = parseFloat(inputEl.value);
+                    if (Number.isNaN(val) || val <= 0) {
+                        showToast('Please enter a valid positive number.', 'error');
+                        inputEl.focus();
+                        return;
+                    }
+                    cleanup();
+                    if (opts.onConfirm) opts.onConfirm(val);
+                } else {
+                    const strVal = (inputEl.value || '').trim();
+                    if (!strVal) {
+                        showToast('Please enter a value.', 'error');
+                        inputEl.focus();
+                        return;
+                    }
+                    cleanup();
+                    if (opts.onConfirm) opts.onConfirm(strVal);
                 }
-                cleanup();
-                if (opts.onConfirm) opts.onConfirm(val);
             } else {
                 cleanup();
                 if (opts.onConfirm) opts.onConfirm(true);
@@ -369,6 +498,10 @@
             receiptFile: g('receipt-file'),
             receiptData: g('receipt-data'),
             btnClearReceipt: g('btn-clear-receipt'),
+            quickPresetsBar: g('quick-presets-bar'),
+            fxForeignAmount: g('fx-foreign-amount'),
+            fxRate: g('fx-rate'),
+            fxCurrency: g('fx-currency'),
 
             list: g('list'),
             ledgerCountBadge: g('ledger-count-badge'),
@@ -376,6 +509,14 @@
             filterBtns: PFCC.compat.qsa('.filter-btn'),
             ledgerCatFilter: g('ledger-category-filter'),
             ledgerSort: g('ledger-sort'),
+            btnToggleBulkSelect: g('btn-toggle-bulk-select'),
+            bulkActionBar: g('bulk-action-bar'),
+            bulkSelectedCount: g('bulk-selected-count'),
+            bulkCategorySelect: g('bulk-category-select'),
+            btnBulkApplyCat: g('btn-bulk-apply-cat'),
+            btnBulkAddTag: g('btn-bulk-add-tag'),
+            btnBulkDelete: g('btn-bulk-delete'),
+            upcomingBillsBanner: g('upcoming-bills-banner'),
 
             // Subscriptions & IOUs
             tabBtnSubs: g('tab-btn-subs'),
@@ -390,6 +531,7 @@
             subName: g('sub-name'),
             subAmount: g('sub-amount'),
             subCycle: g('sub-cycle'),
+            subBillingDay: g('sub-billing-day'),
             subCategory: g('sub-category'),
             btnCancelSub: g('btn-cancel-sub'),
 
@@ -434,6 +576,19 @@
             displayName: g('display-name'),
             btnToggleSound: g('btn-toggle-sound'),
             btnTogglePrivacy: g('btn-toggle-privacy'),
+            btnWrapup: g('btn-wrapup'),
+            wrapupModal: g('wrapup-modal'),
+            btnCloseWrapup: g('btn-close-wrapup'),
+            btnDismissWrapup: g('btn-dismiss-wrapup'),
+            btnDownloadWrapup: g('btn-download-wrapup'),
+            wrapupSummaryGrid: g('wrapup-summary-grid'),
+            wrapupCanvas: g('wrapupCanvas'),
+            appLockOverlay: g('app-lock-overlay'),
+            lockPinInput: g('lock-pin-input'),
+            btnUnlockPin: g('btn-unlock-pin'),
+            btnUnlockBiometric: g('btn-unlock-biometric'),
+            lockErrorMsg: g('lock-error-msg'),
+            btnLockNow: g('btn-lock-now'),
             btnExportCsv: g('btn-export-csv'),
             btnPrint: g('btn-print-report'),
             btnSettings: g('btn-settings'),
@@ -464,6 +619,17 @@
             setRadius: g('setting-radius'),
             setSoundEnabled: g('setting-sound-enabled'),
             setLiveMarketsEnabled: g('setting-live-markets-enabled'),
+            setLockPin: g('setting-lock-pin'),
+            btnClearPin: g('btn-clear-pin'),
+            lockStatusText: g('lock-status-text'),
+            customCatName: g('custom-cat-name'),
+            customCatLimit: g('custom-cat-limit'),
+            btnAddCustomCat: g('btn-add-custom-cat'),
+            customCatList: g('custom-cat-list'),
+            backupPassphrase: g('backup-passphrase'),
+            storageQuotaBar: g('storage-quota-bar'),
+            storageQuotaText: g('storage-quota-text'),
+            backupHealthBadge: g('backup-health-badge'),
             budgetCatSoftware: g('budget-cat-Software'),
             budgetCatFood: g('budget-cat-Food'),
             budgetCatHousing: g('budget-cat-Housing'),
@@ -538,6 +704,7 @@
             debtBalance: g('debt-balance'),
             debtRate: g('debt-rate'),
             debtMinPayment: g('debt-min-payment'),
+            debtBillingDay: g('debt-billing-day'),
             btnCancelDebt: g('btn-cancel-debt'),
             totalDebtBadge: g('total-debt-badge'),
             debtSummaryMetrics: g('debt-summary-metrics'),
@@ -599,6 +766,13 @@
         applyAutoRules,
         getFilteredTransactionsByTimeframe,
         computeRunningBalanceMap,
+        isTransferTx,
+        getExpenseAmount,
+        getIncomeAmount,
+        getTransferAmount,
+        formatCategoryLabel,
+        getAllCategories,
+        syncCategorySelects,
         sanitizeReceiptUrl,
         downloadTextFile
     };

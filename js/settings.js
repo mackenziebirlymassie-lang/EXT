@@ -127,6 +127,117 @@
         });
     }
 
+    function updateLockStatusUI() {
+        const el = PFCC.dom;
+        const locked = !!(PFCC.state && PFCC.state.lockHash);
+        if (el.lockStatusText) {
+            el.lockStatusText.textContent = locked
+                ? 'App Lock PIN is enabled on startup.'
+                : 'No PIN configured (open access).';
+        }
+        if (el.btnClearPin) {
+            el.btnClearPin.style.display = locked ? '' : 'none';
+        }
+        if (el.btnLockNow) {
+            el.btnLockNow.style.display = locked ? '' : 'none';
+        }
+    }
+
+    function renderCustomCategories() {
+        const el = PFCC.dom;
+        if (!el.customCatList) return;
+        el.customCatList.textContent = '';
+
+        const defaults = PFCC.utils.DEFAULT_CATEGORIES || ['Housing', 'Software', 'Food', 'Transport', 'Investments', 'Salary', 'Other'];
+        const allCats = PFCC.utils.getAllCategories();
+        const customCats = allCats.filter(c => defaults.indexOf(c) === -1);
+        const budgets = (PFCC.state.settings && PFCC.state.settings.categoryBudgets) || {};
+
+        if (customCats.length === 0) {
+            const emptyLi = PFCC.utils.createEl('li', 'rule-item rule-empty', 'No custom categories yet. Add one above to organize expenses & caps.');
+            el.customCatList.appendChild(emptyLi);
+            return;
+        }
+
+        customCats.forEach(cat => {
+            const li = PFCC.utils.createEl('li', 'rule-item');
+            const summary = PFCC.utils.createEl('div', 'rule-summary');
+            summary.appendChild(PFCC.utils.createEl('span', 'rule-condition', cat));
+            const cap = Number(budgets[cat]) || 0;
+            summary.appendChild(PFCC.utils.createEl('span', 'rule-action', cap > 0 ? 'Cap: ' + PFCC.utils.formatCurrency(cap) : 'No monthly cap'));
+
+            const delBtn = PFCC.utils.createEl('button', 'action-icon-btn delete');
+            delBtn.type = 'button';
+            delBtn.style.opacity = '1';
+            delBtn.setAttribute('aria-label', 'Remove category ' + cat);
+            delBtn.appendChild(PFCC.icons.create('close', 14));
+            delBtn.addEventListener('click', () => {
+                PFCC.state.categories = PFCC.utils.getAllCategories().filter(c => c !== cat);
+                PFCC.utils.safeSaveJSON('appCategories', PFCC.state.categories);
+                if (PFCC.state.settings && PFCC.state.settings.categoryBudgets) {
+                    delete PFCC.state.settings.categoryBudgets[cat];
+                    PFCC.utils.safeSaveJSON('appSettings', PFCC.state.settings);
+                }
+                PFCC.utils.syncCategorySelects();
+                renderCustomCategories();
+                PFCC.updateDOM();
+                PFCC.audio.playWarningSound();
+                PFCC.showToast('Removed category "' + cat + '"', 'info');
+            });
+
+            li.appendChild(summary);
+            li.appendChild(delBtn);
+            el.customCatList.appendChild(li);
+        });
+    }
+
+    function updateStorageMeterUI() {
+        const el = PFCC.dom;
+        if (!PFCC.security || typeof PFCC.security.getStorageStats !== 'function') return;
+        const stats = PFCC.security.getStorageStats();
+
+        if (el.storageQuotaBar) {
+            const barWidth = Math.max(2, Math.min(100, Math.round(stats.pct)));
+            el.storageQuotaBar.style.width = barWidth + '%';
+            el.storageQuotaBar.classList.toggle('warn', stats.pct >= 65 && stats.pct < 85);
+            el.storageQuotaBar.classList.toggle('danger', stats.pct >= 85);
+        }
+        if (el.storageQuotaText) {
+            el.storageQuotaText.textContent = stats.totalKB + ' KB / ' + stats.quotaKB + ' KB used (' + stats.pct.toFixed(1) + '%) - Receipts: ' + stats.receiptKB + ' KB';
+        }
+        if (el.backupHealthBadge) {
+            const last = Number(PFCC.state.lastBackupAt) || 0;
+            const daysAgo = last > 0 ? Math.floor((Date.now() - last) / 86400000) : null;
+            el.backupHealthBadge.classList.remove('ok', 'warn', 'danger');
+            if (!last) {
+                el.backupHealthBadge.textContent = 'Backup Health: Never Exported';
+                el.backupHealthBadge.classList.add('warn');
+            } else if (daysAgo > 30) {
+                el.backupHealthBadge.textContent = 'Backup Health: Overdue (' + daysAgo + 'd ago)';
+                el.backupHealthBadge.classList.add('danger');
+            } else {
+                const label = daysAgo === 0 ? 'Today' : (daysAgo + 'd ago');
+                el.backupHealthBadge.textContent = 'Backup Health: Protected (' + label + ')';
+                el.backupHealthBadge.classList.add('ok');
+            }
+        }
+    }
+
+    function openWrapupModal() {
+        const el = PFCC.dom;
+        if (!el.wrapupModal) return;
+        if (PFCC.charts && typeof PFCC.charts.renderWrapupSnapshot === 'function') {
+            PFCC.charts.renderWrapupSnapshot();
+        }
+        el.wrapupModal.classList.add('active');
+        if (PFCC.audio) PFCC.audio.playSwooshSound();
+    }
+
+    function closeWrapupModal() {
+        const el = PFCC.dom;
+        if (el.wrapupModal) el.wrapupModal.classList.remove('active');
+    }
+
     function openSettings() {
         const el = PFCC.dom;
         const s = PFCC.state.settings;
@@ -157,6 +268,10 @@
         if (el.holdingPaxg) el.holdingPaxg.value = PFCC.state.holdings.PAXG || '';
 
         renderRules();
+        renderCustomCategories();
+        updateLockStatusUI();
+        updateStorageMeterUI();
+        if (el.setLockPin) el.setLockPin.value = '';
         if (PFCC.picker && typeof PFCC.picker.syncAll === 'function') {
             PFCC.picker.syncAll();
         }
@@ -189,6 +304,13 @@
 
     function saveSettings() {
         const el = PFCC.dom;
+        const s = PFCC.state.settings || {};
+        const rawPin = el.setLockPin ? el.setLockPin.value.trim() : '';
+        if (rawPin && rawPin.length < 4) {
+            PFCC.audio.playWarningSound();
+            PFCC.showToast('App Lock PIN must be at least 4 characters.', 'warning');
+            return;
+        }
         const selectedThemeKey = PFCC.themes.resolveThemeKey(el.setPresetTheme.value);
 
         PFCC.state.settings = {
@@ -201,12 +323,12 @@
             preset: selectedThemeKey,
             font: PFCC.themes.normalizeFont(el.setFont.value),
             radius: PFCC.themes.normalizeRadius(el.setRadius.value),
-            categoryBudgets: {
+            categoryBudgets: Object.assign({}, (s.categoryBudgets || {}), {
                 Software: parseFloat(el.budgetCatSoftware ? el.budgetCatSoftware.value : 0) || 0,
                 Food: parseFloat(el.budgetCatFood ? el.budgetCatFood.value : 0) || 0,
                 Housing: parseFloat(el.budgetCatHousing ? el.budgetCatHousing.value : 0) || 0,
                 Transport: parseFloat(el.budgetCatTransport ? el.budgetCatTransport.value : 0) || 0
-            }
+            })
         };
 
         if (el.holdingBtc) PFCC.state.holdings.BTC = parseFloat(el.holdingBtc.value) || 0;
@@ -231,6 +353,14 @@
         }
 
         PFCC.utils.safeSaveJSON('appSettings', PFCC.state.settings);
+        if (rawPin && PFCC.security && typeof PFCC.security.hashPin === 'function') {
+            PFCC.security.hashPin(rawPin).then(hash => {
+                PFCC.state.lockHash = hash;
+                PFCC.utils.safeSaveJSON('appLockHash', hash);
+                updateLockStatusUI();
+            });
+            if (el.setLockPin) el.setLockPin.value = '';
+        }
         closeSettings();
         applySettings();
         PFCC.markets.updateNetWorth();
@@ -271,24 +401,42 @@
 
         const isObj = x => Boolean(x && typeof x === 'object' && !Array.isArray(x));
         if (Array.isArray(imported.transactions)) {
-            result.transactions = imported.transactions.filter(isObj).map((t, i) => ({
-                id: String(t.id || ('tx-' + Date.now() + '-' + i)),
-                text: String(t.text || '').trim(),
-                amount: Number(t.amount) || 0,
-                category: String(t.category || 'Other'),
-                date: String(t.date || PFCC.utils.getLocalDateString()),
-                tags: sanitizeStringArray(t.tags),
-                receipt: PFCC.utils.sanitizeReceiptUrl(t.receipt) || null
-            }));
+            result.transactions = imported.transactions.filter(isObj).map((t, i) => {
+                const isXfer = Boolean(t.isTransfer);
+                const xferAmt = isXfer
+                    ? Math.max(0, Number(t.transferAmount !== undefined ? t.transferAmount : Math.abs(Number(t.amount) || 0)) || 0)
+                    : 0;
+                const cleanTx = {
+                    id: String(t.id || ('tx-' + Date.now() + '-' + i)),
+                    text: String(t.text || '').trim(),
+                    amount: isXfer ? 0 : (Number(t.amount) || 0),
+                    category: String(t.category || 'Other'),
+                    date: String(t.date || PFCC.utils.getLocalDateString()),
+                    tags: sanitizeStringArray(t.tags),
+                    receipt: PFCC.utils.sanitizeReceiptUrl(t.receipt) || null
+                };
+                if (isXfer) {
+                    cleanTx.isTransfer = true;
+                    cleanTx.transferAmount = xferAmt;
+                }
+                return cleanTx;
+            });
         }
         if (Array.isArray(imported.subscriptions)) {
-            result.subscriptions = imported.subscriptions.filter(isObj).map((sub, i) => ({
-                id: String(sub.id || ('sub-' + Date.now() + '-' + i)),
-                name: String(sub.name || 'Subscription'),
-                amount: Math.max(0, Number(sub.amount) || 0),
-                billingCycle: sub.billingCycle === 'yearly' ? 'yearly' : 'monthly',
-                category: String(sub.category || 'Other')
-            }));
+            result.subscriptions = imported.subscriptions.filter(isObj).map((sub, i) => {
+                const day = Number(sub.billingDay);
+                const cleanSub = {
+                    id: String(sub.id || ('sub-' + Date.now() + '-' + i)),
+                    name: String(sub.name || 'Subscription'),
+                    amount: Math.max(0, Number(sub.amount) || 0),
+                    billingCycle: sub.billingCycle === 'yearly' ? 'yearly' : 'monthly',
+                    category: String(sub.category || 'Other')
+                };
+                if (Number.isFinite(day) && day >= 1 && day <= 31) {
+                    cleanSub.billingDay = Math.floor(day);
+                }
+                return cleanSub;
+            });
         }
         if (Array.isArray(imported.ious)) {
             result.ious = imported.ious.filter(isObj).map((iou, i) => ({
@@ -322,12 +470,34 @@
             }));
         }
         if (Array.isArray(imported.debts)) {
-            result.debts = imported.debts.filter(isObj).map((d, i) => ({
-                id: String(d.id || ('debt-' + Date.now() + '-' + i)),
-                name: String(d.name || 'Debt'),
-                balance: Math.max(0, Number(d.balance) || 0),
-                rate: Math.max(0, Number(d.rate) || 0),
-                minPayment: Math.max(0, Number(d.minPayment) || 0)
+            result.debts = imported.debts.filter(isObj).map((d, i) => {
+                const day = Number(d.billingDay);
+                const cleanDebt = {
+                    id: String(d.id || ('debt-' + Date.now() + '-' + i)),
+                    name: String(d.name || 'Debt'),
+                    balance: Math.max(0, Number(d.balance) || 0),
+                    rate: Math.max(0, Number(d.rate) || 0),
+                    minPayment: Math.max(0, Number(d.minPayment) || 0)
+                };
+                if (Number.isFinite(day) && day >= 1 && day <= 31) {
+                    cleanDebt.billingDay = Math.floor(day);
+                }
+                return cleanDebt;
+            });
+        }
+        if (Array.isArray(imported.categories)) {
+            const cleanedCats = sanitizeStringArray(imported.categories);
+            if (cleanedCats.length > 0) result.categories = cleanedCats;
+        }
+        if (Array.isArray(imported.quickPresets)) {
+            result.quickPresets = imported.quickPresets.filter(isObj).map((p, i) => ({
+                id: String(p.id || ('preset-' + Date.now() + '-' + i)),
+                label: String(p.label || p.text || 'Preset').trim(),
+                text: String(p.text || p.label || 'Entry').trim(),
+                amount: Math.max(0, Number(p.amount) || 0),
+                type: (p.type === 'income' || p.type === 'transfer') ? p.type : 'expense',
+                category: String(p.category || 'Other'),
+                tags: sanitizeStringArray(p.tags)
             }));
         }
         if (Array.isArray(imported.autoRules)) {
@@ -511,18 +681,96 @@
                     savingsVaults: s.savingsVaults,
                     debts: s.debts,
                     autoRules: s.autoRules,
+                    categories: s.categories,
+                    quickPresets: s.quickPresets,
                     settings: s.settings
                 };
+                const jsonText = JSON.stringify(payload, null, 2);
+                const passphrase = el.backupPassphrase ? el.backupPassphrase.value.trim() : '';
+                const dateStamp = PFCC.utils.getLocalDateString();
+
+                const markBackupSaved = () => {
+                    s.lastBackupAt = Date.now();
+                    PFCC.utils.safeSaveJSON('appLastBackupAt', s.lastBackupAt);
+                    updateStorageMeterUI();
+                };
+
+                if (passphrase) {
+                    if (passphrase.length < 4) {
+                        PFCC.audio.playWarningSound();
+                        PFCC.showToast('Use at least 4 characters for backup passphrase.', 'warning');
+                        return;
+                    }
+                    if (!PFCC.security || typeof PFCC.security.encryptBackupJson !== 'function') {
+                        PFCC.showToast('Encryption module unavailable.', 'error');
+                        return;
+                    }
+                    PFCC.security.encryptBackupJson(jsonText, passphrase).then(encJson => {
+                        PFCC.utils.downloadTextFile(
+                            `ext_encrypted_backup_${dateStamp}.json`,
+                            encJson,
+                            'application/json;charset=utf-8'
+                        );
+                        markBackupSaved();
+                        if (el.backupPassphrase) el.backupPassphrase.value = '';
+                        PFCC.audio.playSuccessSound();
+                        PFCC.showToast('AES-256 encrypted JSON backup downloaded.', 'success');
+                    }).catch(err => {
+                        PFCC.audio.playWarningSound();
+                        PFCC.showToast((err && err.message) || 'Backup encryption failed.', 'error');
+                    });
+                    return;
+                }
+
                 PFCC.utils.downloadTextFile(
-                    `ext_backup_${PFCC.utils.getLocalDateString()}.json`,
-                    JSON.stringify(payload, null, 2),
+                    `ext_backup_${dateStamp}.json`,
+                    jsonText,
                     'application/json;charset=utf-8'
                 );
+                markBackupSaved();
                 PFCC.showToast('JSON backup downloaded.', 'success');
             });
         }
 
         if (el.btnRestore) {
+            const applyRestoredObject = (imported) => {
+                const cleaned = sanitizeRestoredPayload(imported);
+                const s = PFCC.state;
+                if (cleaned.transactions) s.transactions = cleaned.transactions;
+                if (cleaned.subscriptions) s.subscriptions = cleaned.subscriptions;
+                if (cleaned.ious) s.ious = cleaned.ious;
+                if (cleaned.holdings) s.holdings = Object.assign(s.holdings, cleaned.holdings);
+                if (typeof cleaned.soundEnabled === 'boolean') s.soundEnabled = cleaned.soundEnabled;
+                if (cleaned.savingsVaults) s.savingsVaults = cleaned.savingsVaults;
+                if (cleaned.debts) s.debts = cleaned.debts;
+                if (cleaned.autoRules) s.autoRules = cleaned.autoRules;
+                if (cleaned.categories) s.categories = cleaned.categories;
+                if (cleaned.quickPresets) s.quickPresets = cleaned.quickPresets;
+                if (cleaned.settings) s.settings = Object.assign(s.settings, cleaned.settings);
+
+                PFCC.utils.safeSaveJSON('appTransactions', s.transactions);
+                PFCC.utils.safeSaveJSON('appSubscriptions', s.subscriptions);
+                PFCC.utils.safeSaveJSON('appIous', s.ious);
+                PFCC.utils.safeSaveJSON('appHoldings', s.holdings);
+                PFCC.utils.safeSaveJSON('appSoundEnabled', s.soundEnabled);
+                PFCC.utils.safeSaveJSON('appSavingsVaults', s.savingsVaults);
+                PFCC.utils.safeSaveJSON('appDebts', s.debts);
+                PFCC.utils.safeSaveJSON('appAutoRules', s.autoRules);
+                PFCC.utils.safeSaveJSON('appCategories', s.categories);
+                PFCC.utils.safeSaveJSON('appQuickPresets', s.quickPresets);
+                PFCC.utils.safeSaveJSON('appSettings', s.settings);
+
+                PFCC.utils.syncCategorySelects();
+                applySettings();
+                PFCC.audio.updateSoundButton();
+                PFCC.updateDOM();
+                renderRules();
+                renderCustomCategories();
+                updateStorageMeterUI();
+                PFCC.audio.playSuccessSound();
+                PFCC.showToast('Database restored from JSON backup.', 'success');
+            };
+
             el.btnRestore.addEventListener('change', e => {
                 const file = e.target.files[0];
                 if (!file) return;
@@ -530,34 +778,35 @@
                 reader.onload = event => {
                     try {
                         const imported = JSON.parse(event.target.result);
-                        const cleaned = sanitizeRestoredPayload(imported);
-                        const s = PFCC.state;
-                        if (cleaned.transactions) s.transactions = cleaned.transactions;
-                        if (cleaned.subscriptions) s.subscriptions = cleaned.subscriptions;
-                        if (cleaned.ious) s.ious = cleaned.ious;
-                        if (cleaned.holdings) s.holdings = Object.assign(s.holdings, cleaned.holdings);
-                        if (typeof cleaned.soundEnabled === 'boolean') s.soundEnabled = cleaned.soundEnabled;
-                        if (cleaned.savingsVaults) s.savingsVaults = cleaned.savingsVaults;
-                        if (cleaned.debts) s.debts = cleaned.debts;
-                        if (cleaned.autoRules) s.autoRules = cleaned.autoRules;
-                        if (cleaned.settings) s.settings = Object.assign(s.settings, cleaned.settings);
-
-                        PFCC.utils.safeSaveJSON('appTransactions', s.transactions);
-                        PFCC.utils.safeSaveJSON('appSubscriptions', s.subscriptions);
-                        PFCC.utils.safeSaveJSON('appIous', s.ious);
-                        PFCC.utils.safeSaveJSON('appHoldings', s.holdings);
-                        PFCC.utils.safeSaveJSON('appSoundEnabled', s.soundEnabled);
-                        PFCC.utils.safeSaveJSON('appSavingsVaults', s.savingsVaults);
-                        PFCC.utils.safeSaveJSON('appDebts', s.debts);
-                        PFCC.utils.safeSaveJSON('appAutoRules', s.autoRules);
-                        PFCC.utils.safeSaveJSON('appSettings', s.settings);
-
-                        applySettings();
-                        PFCC.audio.updateSoundButton();
-                        PFCC.updateDOM();
-                        renderRules();
-                        PFCC.audio.playSuccessSound();
-                        PFCC.showToast('Database restored from JSON backup.', 'success');
+                        if (imported && imported.encrypted === true) {
+                            if (!PFCC.security || typeof PFCC.security.decryptBackupPayload !== 'function') {
+                                PFCC.showToast('Decryption module unavailable.', 'error');
+                            } else {
+                                PFCC.openActionDialog({
+                                    title: 'Decrypt Encrypted Backup',
+                                    message: 'Enter the passphrase used when this AES-256 EXT backup was exported.',
+                                    confirmLabel: 'Decrypt & Restore',
+                                    inputLabel: 'Backup Passphrase',
+                                    inputType: 'password',
+                                    inputPlaceholder: 'Enter passphrase',
+                                    onConfirm: pass => {
+                                        PFCC.security.decryptBackupPayload(imported, pass).then(decrypted => {
+                                            try {
+                                                applyRestoredObject(decrypted);
+                                            } catch (applyErr) {
+                                                PFCC.audio.playWarningSound();
+                                                PFCC.showToast('Decrypted data was malformed.', 'error');
+                                            }
+                                        }).catch(() => {
+                                            PFCC.audio.playWarningSound();
+                                            PFCC.showToast('Decryption failed: wrong passphrase or corrupted file.', 'error');
+                                        });
+                                    }
+                                });
+                            }
+                        } else {
+                            applyRestoredObject(imported);
+                        }
                     } catch (err) {
                         PFCC.audio.playWarningSound();
                         PFCC.showToast('Restore failed: invalid JSON backup file.', 'error');
@@ -565,6 +814,64 @@
                     e.target.value = '';
                 };
                 reader.readAsText(file);
+            });
+        }
+
+        if (el.btnClearPin) {
+            el.btnClearPin.addEventListener('click', () => {
+                PFCC.state.lockHash = '';
+                PFCC.utils.safeRemoveStorage('appLockHash');
+                if (el.setLockPin) el.setLockPin.value = '';
+                updateLockStatusUI();
+                PFCC.audio.playWarningSound();
+                PFCC.showToast('App Lock PIN removed.', 'info');
+            });
+        }
+
+        if (el.btnAddCustomCat) {
+            el.btnAddCustomCat.addEventListener('click', () => {
+                const rawName = el.customCatName ? el.customCatName.value.trim() : '';
+                if (!rawName) {
+                    PFCC.audio.playWarningSound();
+                    PFCC.showToast('Enter a category name first.', 'warning');
+                    return;
+                }
+                const cleanName = rawName.replace(/[<>]/g, '').slice(0, 28);
+                const existing = PFCC.utils.getAllCategories();
+                const duplicate = existing.some(c => c.toLowerCase() === cleanName.toLowerCase());
+                if (duplicate) {
+                    PFCC.audio.playWarningSound();
+                    PFCC.showToast('Category "' + cleanName + '" already exists.', 'warning');
+                    return;
+                }
+                PFCC.state.categories = existing.concat([cleanName]);
+                PFCC.utils.safeSaveJSON('appCategories', PFCC.state.categories);
+
+                const limitVal = parseFloat(el.customCatLimit ? el.customCatLimit.value : 0) || 0;
+                if (limitVal > 0) {
+                    PFCC.state.settings.categoryBudgets = PFCC.state.settings.categoryBudgets || {};
+                    PFCC.state.settings.categoryBudgets[cleanName] = limitVal;
+                    PFCC.utils.safeSaveJSON('appSettings', PFCC.state.settings);
+                }
+
+                if (el.customCatName) el.customCatName.value = '';
+                if (el.customCatLimit) el.customCatLimit.value = '';
+                PFCC.utils.syncCategorySelects();
+                renderCustomCategories();
+                PFCC.updateDOM();
+                PFCC.audio.playSuccessSound();
+                PFCC.showToast('Added custom category "' + cleanName + '"', 'success');
+            });
+        }
+
+        if (el.btnWrapup) el.btnWrapup.addEventListener('click', openWrapupModal);
+        if (el.btnCloseWrapup) el.btnCloseWrapup.addEventListener('click', closeWrapupModal);
+        if (el.btnDismissWrapup) el.btnDismissWrapup.addEventListener('click', closeWrapupModal);
+        if (el.btnDownloadWrapup) {
+            el.btnDownloadWrapup.addEventListener('click', () => {
+                if (PFCC.charts && typeof PFCC.charts.downloadWrapupPng === 'function') {
+                    PFCC.charts.downloadWrapupPng();
+                }
             });
         }
 
@@ -602,6 +909,11 @@
         applySettings,
         togglePrivacyMode,
         renderRules,
+        renderCustomCategories,
+        updateStorageMeterUI,
+        updateLockStatusUI,
+        openWrapupModal,
+        closeWrapupModal,
         sanitizeRestoredPayload,
         openSettings,
         closeSettings,

@@ -187,7 +187,7 @@ function loadAppModules(mockStorageData = {}, { throwOnSave = false } = {}) {
     sandbox.window = sandbox;
     sandbox.globalThis = sandbox;
 
-    const files = ['compat.js', 'icons.js', 'i18n.js', 'themes.js', 'state.js', 'audio.js', 'markets.js', 'charts.js', 'ledger.js', 'planning.js', 'importer.js', 'cli.js', 'settings.js', 'liquid.js', 'picker.js', 'main.js'];
+    const files = ['compat.js', 'icons.js', 'i18n.js', 'themes.js', 'state.js', 'audio.js', 'markets.js', 'charts.js', 'ledger.js', 'planning.js', 'importer.js', 'cli.js', 'security.js', 'settings.js', 'liquid.js', 'picker.js', 'main.js'];
     for (const file of files) {
         const code = fs.readFileSync(path.join(rootDir, 'js', file), 'utf8');
         vm.runInNewContext(code, sandbox, { filename: file });
@@ -745,4 +745,102 @@ test('Play Store, GDPR, UU PDP, and financial disclaimer safeguards are in place
     assert.equal(gradle.includes('playstore'), true, 'build.gradle must define playstore flavor');
     assert.equal(gradle.includes('github'), true, 'build.gradle must define github flavor');
     assert.equal(gradle.includes('ENABLE_SELF_UPDATE'), true, 'build.gradle must gate self-updater via ENABLE_SELF_UPDATE');
+});
+
+test('Internal transfers are excluded from expense burn, ratios, and budget pace', () => {
+    const { PFCC } = loadAppModules();
+    const today = PFCC.utils.getLocalDateString();
+    const txs = [
+        { id: 't1', text: 'Salary', amount: 4000, category: 'Salary', date: today },
+        { id: 't2', text: 'Rent', amount: -1000, category: 'Housing', date: today },
+        { id: 't3', text: 'Move to Savings Vault', amount: 0, transferAmount: 1500, isTransfer: true, category: 'Investments', date: today }
+    ];
+
+    const ratios = PFCC.planning.computeFinancialRatios(txs, txs, [{ id: 's1', amount: 200, billingCycle: 'monthly' }], 0.25);
+    assert.equal(ratios.savingsRate, 75, 'Savings rate must remain 75% despite $1500 transfer');
+    assert.equal(ratios.fixedBurnRatio, 20, 'Fixed burn ratio must exclude $1500 transfer (200/1000 = 20%)');
+
+    const pace = PFCC.charts.computeBudgetPaceSeries(txs);
+    const activeCumulative = pace.actualCumulative[pace.activeLimitDay - 1];
+    assert.equal(activeCumulative, 1000, 'Budget pace cumulative spend must exclude transfer entries');
+
+    const runway = PFCC.planning.calculateRunway(txs, txs);
+    assert.equal(runway.status, 'positive');
+});
+
+test('Upcoming commitments engine surfaces subscriptions and debts due within 7 days', () => {
+    const { PFCC } = loadAppModules();
+    PFCC.state.subscriptions = [
+        { id: 's1', name: 'VPS Host', amount: 25, billingCycle: 'monthly', category: 'Software', billingDay: 20 },
+        { id: 's2', name: 'Far Subscription', amount: 50, billingCycle: 'monthly', category: 'Software', billingDay: 5 }
+    ];
+    PFCC.state.debts = [
+        { id: 'd1', name: 'Card', balance: 500, rate: 12, minPayment: 40, billingDay: 22 }
+    ];
+
+    const ref = new Date(2026, 3, 18); // April 18 -> 20 (+2d) and 22 (+4d) due within 7 days
+    const upcoming = PFCC.planning.getUpcomingCommitments(7, ref);
+    assert.equal(upcoming.length, 2);
+    assert.equal(upcoming[0].name, 'VPS Host');
+    assert.equal(upcoming[0].daysAway, 2);
+    assert.equal(upcoming[1].name, 'Card (Min Pay)');
+    assert.equal(upcoming[1].kind, 'debt');
+    assert.equal(upcoming[1].daysAway, 4);
+});
+
+test('Security module hashes PIN deterministically and reports local storage stats', async () => {
+    const { PFCC } = loadAppModules();
+    assert.ok(PFCC.security && typeof PFCC.security.hashPin === 'function');
+    const h1 = await PFCC.security.hashPin('2580');
+    const h2 = await PFCC.security.hashPin('2580');
+    const h3 = await PFCC.security.hashPin('9999');
+    assert.equal(h1, h2);
+    assert.notEqual(h1, h3);
+
+    const stats = PFCC.security.getStorageStats();
+    assert.equal(typeof stats.totalKB, 'number');
+    assert.equal(stats.quotaKB, 5120);
+});
+
+test('sanitizeRestoredPayload preserves transfers, billingDay, custom categories, and quickPresets', () => {
+    const { PFCC } = loadAppModules();
+    const cleaned = PFCC.settings.sanitizeRestoredPayload({
+        transactions: [
+            { id: 'x1', text: 'Vault Move', isTransfer: true, transferAmount: 300, amount: 0, category: 'Investments', date: '2026-04-10' }
+        ],
+        subscriptions: [
+            { id: 's1', name: 'Cloud', amount: 19, billingCycle: 'monthly', category: 'Software', billingDay: 27 }
+        ],
+        debts: [
+            { id: 'd1', name: 'Auto', balance: 1200, rate: 4.5, minPayment: 110, billingDay: 14 }
+        ],
+        categories: ['Housing', 'Software', 'Hardware'],
+        quickPresets: [
+            { id: 'p1', label: 'Espresso', text: 'Espresso', amount: 3.5, type: 'expense', category: 'Food', tags: ['#coffee'] }
+        ]
+    });
+
+    assert.equal(cleaned.transactions[0].isTransfer, true);
+    assert.equal(cleaned.transactions[0].transferAmount, 300);
+    assert.equal(cleaned.subscriptions[0].billingDay, 27);
+    assert.equal(cleaned.debts[0].billingDay, 14);
+    assert.deepEqual(cleaned.categories, ['Housing', 'Software', 'Hardware']);
+    assert.equal(cleaned.quickPresets.length, 1);
+    assert.equal(cleaned.quickPresets[0].text, 'Espresso');
+});
+
+test('Android home-screen shortcuts and native device credential lock are wired cleanly', () => {
+    const shortcutsPath = path.join(rootDir, 'android/app/src/main/res/xml/shortcuts.xml');
+    assert.equal(fs.existsSync(shortcutsPath), true, 'Missing Android shortcuts.xml');
+    const shortcutsXml = fs.readFileSync(shortcutsPath, 'utf8');
+    assert.equal(shortcutsXml.includes('ext_shortcut'), true);
+
+    const manifestXml = fs.readFileSync(path.join(rootDir, 'android/app/src/main/AndroidManifest.xml'), 'utf8');
+    assert.equal(manifestXml.includes('android.app.shortcuts'), true);
+
+    const mainJava = fs.readFileSync(path.join(rootDir, 'android/app/src/main/java/org/pfcc/financeos/MainActivity.java'), 'utf8');
+    assert.equal(mainJava.includes('REQ_DEVICE_CREDENTIAL'), true);
+    assert.equal(mainJava.includes('KeyguardManager'), true);
+    assert.equal(mainJava.includes('requestDeviceUnlock'), true);
+    assert.equal(mainJava.includes('PFCC.handleAndroidShortcut'), true);
 });

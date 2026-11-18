@@ -101,8 +101,8 @@
             el.balance.textContent = formatCurrency(lifetimeBalance);
         }
 
-        const inc = activeTimeframeTxs.filter(i => i.amount > 0).reduce((acc, i) => acc + i.amount, 0);
-        const exp = activeTimeframeTxs.filter(i => i.amount < 0).reduce((acc, i) => acc + Math.abs(i.amount), 0);
+        const inc = activeTimeframeTxs.reduce((acc, i) => acc + PFCC.utils.getIncomeAmount(i), 0);
+        const exp = activeTimeframeTxs.reduce((acc, i) => acc + PFCC.utils.getExpenseAmount(i), 0);
 
         if (el.incomeTotal) el.incomeTotal.textContent = '+' + formatCurrency(inc);
         if (el.expenseTotal) el.expenseTotal.textContent = '-' + formatCurrency(exp);
@@ -130,6 +130,7 @@
         PFCC.planning.renderEnvelopes(timeframeFiltered);
         PFCC.planning.updateSimulation();
         PFCC.charts.updateCharts(timeframeFiltered);
+        if (typeof PFCC.ledger.renderQuickPresets === 'function') PFCC.ledger.renderQuickPresets();
         PFCC.ledger.renderLedger();
         PFCC.ledger.renderSubscriptions();
         PFCC.ledger.renderIous();
@@ -244,8 +245,12 @@
             if (cancel) cancel.click();
             return true;
         }
+        if (el.appLockOverlay && el.appLockOverlay.classList.contains('active')) {
+            return true;
+        }
         let closed = false;
         if (el.modal && el.modal.classList.contains('active')) { PFCC.settings.closeSettings(); closed = true; }
+        if (el.wrapupModal && el.wrapupModal.classList.contains('active')) { PFCC.settings.closeWrapupModal(); closed = true; }
         if (el.cliModal && el.cliModal.classList.contains('active')) { PFCC.cli.closeCli(); closed = true; }
         if (el.importModal && el.importModal.classList.contains('active')) { PFCC.importer.closeCsvImporter(); closed = true; }
         if (el.receiptModal && el.receiptModal.classList.contains('active')) { PFCC.ledger.closeReceiptLightbox(); closed = true; }
@@ -275,6 +280,7 @@
             overlay.addEventListener('click', e => {
                 if (e.target !== overlay) return;
                 if (overlay.id === 'settings-modal') PFCC.settings.closeSettings();
+                else if (overlay.id === 'wrapup-modal') PFCC.settings.closeWrapupModal();
                 else if (overlay.id === 'cli-modal') PFCC.cli.closeCli();
                 else if (overlay.id === 'import-modal') PFCC.importer.closeCsvImporter();
                 else if (overlay.id === 'receipt-modal') PFCC.ledger.closeReceiptLightbox();
@@ -356,11 +362,118 @@
         }, 750);
     }
 
+    function showAppLock() {
+        const el = PFCC.dom;
+        if (!el.appLockOverlay || !PFCC.state.lockHash) return;
+        el.appLockOverlay.classList.add('active');
+        if (el.lockErrorMsg) el.lockErrorMsg.textContent = '';
+        if (el.lockPinInput) {
+            el.lockPinInput.value = '';
+            setTimeout(() => { el.lockPinInput.focus(); }, 40);
+        }
+        if (el.btnUnlockBiometric) {
+            const hasBridge = global.AndroidBridge && typeof global.AndroidBridge.isDeviceLockSupported === 'function';
+            let supported = false;
+            try {
+                supported = Boolean(hasBridge && global.AndroidBridge.isDeviceLockSupported());
+            } catch (err) {
+                supported = false;
+            }
+            el.btnUnlockBiometric.style.display = supported ? '' : 'none';
+        }
+    }
+
+    function hideAppLock() {
+        const el = PFCC.dom;
+        if (el.appLockOverlay) el.appLockOverlay.classList.remove('active');
+        if (el.lockPinInput) el.lockPinInput.value = '';
+        if (el.lockErrorMsg) el.lockErrorMsg.textContent = '';
+    }
+
+    function tryUnlockWithPin() {
+        const el = PFCC.dom;
+        const pin = el.lockPinInput ? el.lockPinInput.value.trim() : '';
+        if (!pin || !PFCC.security || typeof PFCC.security.hashPin !== 'function') return;
+        PFCC.security.hashPin(pin).then(hash => {
+            if (hash === PFCC.state.lockHash) {
+                hideAppLock();
+                if (PFCC.audio) PFCC.audio.playSuccessSound();
+            } else {
+                if (el.lockErrorMsg) el.lockErrorMsg.textContent = 'Incorrect PIN. Please try again.';
+                if (PFCC.audio) PFCC.audio.playWarningSound();
+                if (el.lockPinInput) el.lockPinInput.select();
+            }
+        });
+    }
+
+    function initAppLock() {
+        const el = PFCC.dom;
+        if (el.btnUnlockPin) {
+            el.btnUnlockPin.addEventListener('click', tryUnlockWithPin);
+        }
+        if (el.lockPinInput) {
+            el.lockPinInput.addEventListener('keydown', e => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    tryUnlockWithPin();
+                }
+            });
+        }
+        if (el.btnUnlockBiometric) {
+            el.btnUnlockBiometric.addEventListener('click', () => {
+                if (global.AndroidBridge && typeof global.AndroidBridge.requestDeviceUnlock === 'function') {
+                    global.AndroidBridge.requestDeviceUnlock();
+                }
+            });
+        }
+        if (el.btnLockNow) {
+            el.btnLockNow.addEventListener('click', showAppLock);
+        }
+        if (PFCC.state.lockHash) {
+            showAppLock();
+        }
+    }
+
+    function onDeviceUnlockResult(success) {
+        if (success) {
+            hideAppLock();
+            if (PFCC.audio) PFCC.audio.playSuccessSound();
+        } else if (PFCC.dom && PFCC.dom.lockErrorMsg) {
+            PFCC.dom.lockErrorMsg.textContent = 'Device verification cancelled. Enter PIN to unlock.';
+        }
+    }
+
+    function handleAndroidShortcut(action) {
+        if (!action) return;
+        if (!PFCC._bootstrapped) {
+            PFCC.pendingShortcutAction = action;
+            return;
+        }
+        const el = PFCC.dom;
+        if (action === 'expense') {
+            switchWorkbenchView('ledger');
+            setQuickEntryCollapsed(false);
+            if (el.typeInput) el.typeInput.value = 'expense';
+            if (PFCC.picker && typeof PFCC.picker.syncSelect === 'function' && el.typeInput) {
+                PFCC.picker.syncSelect(el.typeInput);
+            }
+            if (el.textInput) {
+                setTimeout(() => { el.textInput.focus(); }, 60);
+            }
+        } else if (action === 'budget') {
+            switchWorkbenchView('budget');
+        } else if (action === 'forecast') {
+            switchWorkbenchView('forecast');
+        }
+    }
+
     function bootstrap() {
         runStartupSweep();
         PFCC.collectDom();
         PFCC.icons.hydrateStaticIcons(document);
+        PFCC.utils.syncCategorySelects();
         PFCC.settings.applySettings();
+        PFCC.settings.updateLockStatusUI();
         PFCC.audio.updateSoundButton();
         initWorkbenchControls();
         initTimeframeControls();
@@ -374,10 +487,16 @@
         if (PFCC.liquid && typeof PFCC.liquid.initLiquid === 'function') PFCC.liquid.initLiquid();
         PFCC.markets.initMarkets();
         initGlobalEvents();
+        initAppLock();
         updateTimeframeUI();
         switchWorkbenchView(PFCC.state.activeView);
         updateDOM();
         PFCC._bootstrapped = true;
+        if (PFCC.pendingShortcutAction) {
+            const pending = PFCC.pendingShortcutAction;
+            PFCC.pendingShortcutAction = null;
+            handleAndroidShortcut(pending);
+        }
     }
 
     PFCC.updateDOM = updateDOM;
@@ -385,6 +504,9 @@
     PFCC.switchWorkbenchView = switchWorkbenchView;
     PFCC.setQuickEntryCollapsed = setQuickEntryCollapsed;
     PFCC.handleBackPress = handleBackPress;
+    PFCC.handleAndroidShortcut = handleAndroidShortcut;
+    PFCC.onDeviceUnlockResult = onDeviceUnlockResult;
+    PFCC.showAppLock = showAppLock;
     PFCC.onAppUpdateAvailable = function (buildNumber, releaseTitle, downloadUrl) {
         if (!downloadUrl || !global.AndroidBridge || typeof global.AndroidBridge.startApkUpdate !== 'function') return;
         PFCC.openActionDialog({

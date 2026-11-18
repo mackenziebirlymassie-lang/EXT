@@ -1,4 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">EXT</string>
+    <string name="shortcut_expense_short">Add Entry</string>
+    <string name="shortcut_expense_long">Quick-log expense or transfer</string>
+    <string name="shortcut_budget_short">Budgets</string>
+    <string name="shortcut_budget_long">Inspect spending caps &amp; commitments</string>
+    <string name="shortcut_forecast_short">Forecast</string>
+    <string name="shortcut_forecast_long">Open runway, debts &amp; FIRE outlook</string>
 </resources>

@@ -22,6 +22,7 @@
     <script defer src="js/planning.js"></script>
     <script defer src="js/importer.js"></script>
     <script defer src="js/cli.js"></script>
+    <script defer src="js/security.js"></script>
     <script defer src="js/settings.js"></script>
     <script defer src="js/liquid.js"></script>
     <script defer src="js/picker.js"></script>
@@ -98,6 +99,14 @@
                 <button type="button" id="btn-print-report" class="btn btn-outline mobile-secondary-action" title="Print Report">
                     <span class="icon-slot" data-icon="printer" data-icon-size="15"></span>
                     <span data-i18n="print">Report</span>
+                </button>
+                <button type="button" id="btn-wrapup" class="btn btn-outline mobile-secondary-action" title="Monthly Wrap-Up Snapshot">
+                    <span class="icon-slot" data-icon="calendar" data-icon-size="15"></span>
+                    <span>Wrap-Up</span>
+                </button>
+                <button type="button" id="btn-lock-now" class="btn btn-outline mobile-secondary-action" title="Lock Workspace Now" style="display: none;">
+                    <span class="icon-slot" data-icon="lock" data-icon-size="15"></span>
+                    <span>Lock</span>
                 </button>
                 <button type="button" id="btn-shortcuts" class="btn btn-outline mobile-secondary-action" title="Keyboard Shortcuts (?)" aria-label="Keyboard shortcuts help">
                     <span class="icon-slot" data-icon="help" data-icon-size="15"></span>
@@ -202,6 +211,8 @@
                             </button>
                         </div>
 
+                        <div id="quick-presets-bar" class="quick-presets-bar" aria-label="One-tap quick presets"></div>
+
                         <div class="quick-entry-row">
                             <div class="form-group qe-date">
                                 <label for="date" data-i18n="date">Date</label>
@@ -212,6 +223,7 @@
                                 <select id="type">
                                     <option value="expense">Expense</option>
                                     <option value="income">Income</option>
+                                    <option value="transfer">Transfer (Vault / Debt)</option>
                                 </select>
                             </div>
                             <div class="form-group qe-desc">
@@ -257,6 +269,30 @@
                                     <input type="hidden" id="receipt-data" value="" />
                                 </div>
                             </div>
+                            <div class="form-row three-col fx-converter-row">
+                                <div class="form-group">
+                                    <label for="fx-foreign-amount">FX Amount (Optional)</label>
+                                    <input type="number" id="fx-foreign-amount" placeholder="e.g. 50.00" step="0.01" min="0" />
+                                </div>
+                                <div class="form-group">
+                                    <label for="fx-currency">Foreign Currency</label>
+                                    <select id="fx-currency">
+                                        <option value="USD">USD</option>
+                                        <option value="EUR">EUR</option>
+                                        <option value="GBP">GBP</option>
+                                        <option value="JPY">JPY</option>
+                                        <option value="SGD">SGD</option>
+                                        <option value="AUD">AUD</option>
+                                        <option value="CAD">CAD</option>
+                                        <option value="IDR">IDR</option>
+                                        <option value="CHF">CHF</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="fx-rate">Rate to Primary</label>
+                                    <input type="number" id="fx-rate" placeholder="e.g. 1.08" step="0.0001" min="0" />
+                                </div>
+                            </div>
                         </div>
                     </form>
                 </section>
@@ -277,6 +313,7 @@
                                 <button type="button" class="segment-btn filter-btn active" data-type="all">All</button>
                                 <button type="button" class="segment-btn filter-btn" data-type="expense">Expenses</button>
                                 <button type="button" class="segment-btn filter-btn" data-type="income">Income</button>
+                                <button type="button" class="segment-btn filter-btn" data-type="transfer">Transfer</button>
                             </div>
                             <div class="ledger-filter-group">
                                 <select id="ledger-category-filter" class="ledger-select" aria-label="Filter by category">
@@ -295,6 +332,24 @@
                                     <option value="amount_desc">Highest Amount</option>
                                     <option value="amount_asc">Lowest Amount</option>
                                 </select>
+                                <button type="button" id="btn-toggle-bulk-select" class="btn btn-outline btn-sm" aria-pressed="false" title="Toggle multi-select mode">Select</button>
+                            </div>
+                        </div>
+                        <div id="bulk-action-bar" class="bulk-action-bar" style="display: none;" aria-label="Bulk ledger actions">
+                            <span id="bulk-selected-count" class="bulk-count">0 selected</span>
+                            <div class="bulk-controls">
+                                <select id="bulk-category-select" class="ledger-select" aria-label="Bulk recategorize target">
+                                    <option value="Housing">Housing &amp; Utilities</option>
+                                    <option value="Software">Software &amp; Tech</option>
+                                    <option value="Food">Food &amp; Dining</option>
+                                    <option value="Transport">Transportation</option>
+                                    <option value="Investments">Investments</option>
+                                    <option value="Salary">Salary &amp; Wages</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                                <button type="button" id="btn-bulk-apply-cat" class="btn btn-outline btn-sm">Move</button>
+                                <button type="button" id="btn-bulk-add-tag" class="btn btn-outline btn-sm">+ #Tag</button>
+                                <button type="button" id="btn-bulk-delete" class="btn btn-danger btn-sm">Delete</button>
                             </div>
                         </div>
                         <div class="ledger-table-wrap">
@@ -336,6 +391,7 @@
                         </div>
 
                         <div id="subs-view">
+                            <div id="upcoming-bills-banner" class="upcoming-bills-banner" style="display: none;"></div>
                             <div id="sub-form-drawer" class="sub-form-drawer">
                                 <form id="subscription-form">
                                     <div class="form-row">
@@ -348,7 +404,7 @@
                                             <input type="number" id="sub-amount" placeholder="10.00" step="0.01" min="0.01" required />
                                         </div>
                                     </div>
-                                    <div class="form-row">
+                                    <div class="form-row three-col">
                                         <div class="form-group">
                                             <label for="sub-cycle">Billing Cycle</label>
                                             <select id="sub-cycle">
@@ -363,6 +419,10 @@
                                                 <option value="Housing">Housing &amp; Utilities</option>
                                                 <option value="Other">Other</option>
                                             </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="sub-billing-day">Due Day (1-31)</label>
+                                            <input type="number" id="sub-billing-day" min="1" max="31" placeholder="Optional" />
                                         </div>
                                     </div>
                                     <div class="form-actions-row">
@@ -691,7 +751,7 @@
                                             <input type="number" id="debt-balance" placeholder="5000.00" step="10" min="0" required />
                                         </div>
                                     </div>
-                                    <div class="form-row">
+                                    <div class="form-row three-col">
                                         <div class="form-group">
                                             <label for="debt-rate">Annual Interest Rate (%)</label>
                                             <input type="number" id="debt-rate" placeholder="5.0" step="0.1" min="0" />
@@ -699,6 +759,10 @@
                                         <div class="form-group">
                                             <label for="debt-min-payment">Minimum Monthly Payment</label>
                                             <input type="number" id="debt-min-payment" placeholder="150.00" step="5" min="0" required />
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="debt-billing-day">Due Day (1-31)</label>
+                                            <input type="number" id="debt-billing-day" min="1" max="31" placeholder="Optional" />
                                         </div>
                                     </div>
                                     <div class="form-actions-row">
@@ -956,6 +1020,17 @@
                         <input type="checkbox" id="setting-sound-enabled" checked />
                         <label for="setting-sound-enabled">Enable Native Web Audio Synthesizer Sound FX</label>
                     </div>
+                    <h3 class="config-subtitle spaced-subtitle">Privacy &amp; App Lock</h3>
+                    <p id="lock-status-text" class="helper-copy">No PIN configured (open access).</p>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="setting-lock-pin">Set / Change App Lock PIN</label>
+                            <input type="password" id="setting-lock-pin" inputmode="numeric" minlength="4" maxlength="16" placeholder="4+ digits (leave empty to keep)" autocomplete="new-password" />
+                        </div>
+                        <div class="form-group pin-actions-group">
+                            <button type="button" id="btn-clear-pin" class="btn btn-outline btn-sm" style="display: none;">Remove PIN</button>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="tab-content" id="tab-themes" role="tabpanel">
@@ -1039,6 +1114,21 @@
                         </div>
                     </div>
 
+                    <h3 class="config-subtitle spaced-subtitle">Custom Categories</h3>
+                    <p class="helper-copy">Create custom categories with optional monthly caps. Default categories stay preserved.</p>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="custom-cat-name">Category Name</label>
+                            <input type="text" id="custom-cat-name" maxlength="28" placeholder="e.g. Hardware, Travel" autocomplete="off" />
+                        </div>
+                        <div class="form-group">
+                            <label for="custom-cat-limit">Monthly Cap (Optional)</label>
+                            <input type="number" id="custom-cat-limit" placeholder="0" step="10" min="0" />
+                        </div>
+                    </div>
+                    <button type="button" id="btn-add-custom-cat" class="btn btn-outline btn-sm">+ Add Custom Category</button>
+                    <ul id="custom-cat-list" class="rules-list custom-cat-list"></ul>
+
                     <h3 class="config-subtitle spaced-subtitle">Crypto &amp; Metals Portfolio Holdings</h3>
                     <div class="form-row">
                         <div class="form-group">
@@ -1064,6 +1154,19 @@
 
                 <div class="tab-content" id="tab-data" role="tabpanel">
                     <h3 class="config-subtitle" data-i18n="sub_data">Database Control</h3>
+                    <div class="storage-health-card">
+                        <div class="storage-health-top">
+                            <span id="storage-quota-text" class="storage-quota-text">Calculating local storage usage...</span>
+                            <span id="backup-health-badge" class="status-badge">Backup Health</span>
+                        </div>
+                        <div class="progress-track">
+                            <div id="storage-quota-bar" class="progress-fill storage-quota-fill"></div>
+                        </div>
+                    </div>
+                    <div class="form-group spaced-field">
+                        <label for="backup-passphrase">Optional Encryption Passphrase (AES-256-GCM)</label>
+                        <input type="password" id="backup-passphrase" placeholder="Leave blank for standard JSON, or enter 4+ chars to encrypt" autocomplete="new-password" />
+                    </div>
                     <div class="form-row">
                         <button id="btn-backup" type="button" class="btn btn-outline" data-i18n="btn_backup">Backup Database (JSON)</button>
                         <label for="btn-restore" class="btn btn-outline file-label-btn">
@@ -1297,6 +1400,57 @@
             <div class="modal-footer modal-footer-end">
                 <button type="button" id="btn-action-dialog-cancel" class="btn btn-outline">Cancel</button>
                 <button type="button" id="btn-action-dialog-confirm" class="btn btn-primary btn-inline-auto">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Monthly Wrap-Up Snapshot Modal -->
+    <div id="wrapup-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="wrapup-modal-title">
+        <div class="modal-content window-box">
+            <div class="window-header">
+                <div class="header-right-group">
+                    <span class="icon-slot" data-icon="calendar" data-icon-size="16"></span>
+                    <h2 id="wrapup-modal-title" class="window-title">Monthly Wrap-Up</h2>
+                </div>
+                <button type="button" id="btn-close-wrapup" class="close-btn" aria-label="Close Monthly Wrap-Up">
+                    <span class="icon-slot" data-icon="close" data-icon-size="16"></span>
+                </button>
+            </div>
+            <div class="modal-body section-body">
+                <div id="wrapup-summary-grid" class="wrapup-summary-grid"></div>
+                <div class="wrapup-canvas-wrap">
+                    <canvas id="wrapupCanvas" width="760" height="440"></canvas>
+                </div>
+            </div>
+            <div class="modal-footer modal-footer-between">
+                <button type="button" id="btn-download-wrapup" class="btn btn-primary btn-sm">
+                    <span class="icon-slot" data-icon="download" data-icon-size="14"></span>
+                    <span>Download PNG Card</span>
+                </button>
+                <button type="button" id="btn-dismiss-wrapup" class="btn btn-outline btn-sm">Done</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- App Lock PIN / Biometric Gate -->
+    <div id="app-lock-overlay" class="app-lock-overlay" role="dialog" aria-modal="true" aria-labelledby="app-lock-title">
+        <div class="app-lock-card window-box">
+            <div class="app-lock-head">
+                <span class="icon-slot" data-icon="lock" data-icon-size="22"></span>
+                <h2 id="app-lock-title" class="window-title">EXT Locked</h2>
+                <p class="helper-copy">Enter your local PIN or verify with device credentials to unlock financial telemetry.</p>
+            </div>
+            <div class="form-group">
+                <label for="lock-pin-input" class="sr-only">App Lock PIN</label>
+                <input type="password" id="lock-pin-input" inputmode="numeric" placeholder="Enter PIN" autocomplete="current-password" />
+            </div>
+            <p id="lock-error-msg" class="lock-error-msg" role="alert"></p>
+            <div class="app-lock-actions">
+                <button type="button" id="btn-unlock-pin" class="btn btn-primary">Unlock</button>
+                <button type="button" id="btn-unlock-biometric" class="btn btn-outline" style="display: none;">
+                    <span class="icon-slot" data-icon="shield" data-icon-size="15"></span>
+                    <span>Biometric / Device PIN</span>
+                </button>
             </div>
         </div>
     </div>

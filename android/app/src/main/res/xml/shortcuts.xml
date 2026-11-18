@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="add_expense"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher_round"
+        android:shortcutShortLabel="@string/shortcut_expense_short"
+        android:shortcutLongLabel="@string/shortcut_expense_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="org.pfcc.financeos"
+            android:targetClass="org.pfcc.financeos.MainActivity">
+            <extra android:name="ext_shortcut" android:value="expense" />
+        </intent>
+    </shortcut>
+    <shortcut
+        android:shortcutId="open_budget"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher_round"
+        android:shortcutShortLabel="@string/shortcut_budget_short"
+        android:shortcutLongLabel="@string/shortcut_budget_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="org.pfcc.financeos"
+            android:targetClass="org.pfcc.financeos.MainActivity">
+            <extra android:name="ext_shortcut" android:value="budget" />
+        </intent>
+    </shortcut>
+    <shortcut
+        android:shortcutId="open_forecast"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher_round"
+        android:shortcutShortLabel="@string/shortcut_forecast_short"
+        android:shortcutLongLabel="@string/shortcut_forecast_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="org.pfcc.financeos"
+            android:targetClass="org.pfcc.financeos.MainActivity">
+            <extra android:name="ext_shortcut" android:value="forecast" />
+        </intent>
+    </shortcut>
+</shortcuts>

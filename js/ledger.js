@@ -43,10 +43,11 @@
         if (typeof PFCC.switchWorkbenchView === 'function') PFCC.switchWorkbenchView('ledger');
         if (typeof PFCC.setQuickEntryCollapsed === 'function') PFCC.setQuickEntryCollapsed(false);
         else if (el.quickEntryBox) el.quickEntryBox.classList.remove('qe-collapsed');
+        const isXfer = PFCC.utils.isTransferTx(t);
         el.editId.value = t.id;
         el.text.value = t.text;
-        el.amount.value = Math.abs(t.amount);
-        el.type.value = t.amount < 0 ? 'expense' : 'income';
+        el.amount.value = isXfer ? PFCC.utils.getTransferAmount(t) : Math.abs(t.amount);
+        el.type.value = isXfer ? 'transfer' : (t.amount < 0 ? 'expense' : 'income');
         el.category.value = t.category;
         if (PFCC.picker && typeof PFCC.picker.syncSelect === 'function') {
             PFCC.picker.syncSelect(el.type);
@@ -88,6 +89,8 @@
         el.text.value = '';
         el.amount.value = '';
         el.tags.value = '';
+        if (el.fxForeignAmount) el.fxForeignAmount.value = '';
+        if (el.fxRate) el.fxRate.value = '';
         if (el.receiptFile) el.receiptFile.value = '';
         if (el.receiptData) el.receiptData.value = '';
         if (el.btnClearReceipt) el.btnClearReceipt.style.display = 'none';
@@ -109,8 +112,18 @@
             .filter(tag => tag.length > 0)
             .map(tag => tag.startsWith('#') ? tag : `#${tag}`);
 
-        const isExpense = el.type.value === 'expense';
-        const computedAmount = isExpense ? -Math.abs(rawAmount) : Math.abs(rawAmount);
+        const fxAmt = el.fxForeignAmount ? parseFloat(el.fxForeignAmount.value) : NaN;
+        const fxRateVal = el.fxRate ? parseFloat(el.fxRate.value) : NaN;
+        const fxCur = el.fxCurrency ? (el.fxCurrency.value || 'USD').toUpperCase() : 'USD';
+        if (!Number.isNaN(fxAmt) && fxAmt > 0 && !Number.isNaN(fxRateVal) && fxRateVal > 0) {
+            const fxTag = `#fx:${fxAmt}_${fxCur}@${fxRateVal}`;
+            if (!parsedTags.includes(fxTag)) parsedTags.push(fxTag);
+        }
+
+        const txType = el.type.value;
+        const isTransfer = txType === 'transfer';
+        const isExpense = txType === 'expense';
+        const computedAmount = isTransfer ? 0 : (isExpense ? -Math.abs(rawAmount) : Math.abs(rawAmount));
         const receiptVal = el.receiptData ? el.receiptData.value : '';
 
         if (el.editId.value) {
@@ -119,6 +132,8 @@
             if (index !== -1) {
                 PFCC.state.transactions[index].text = textVal;
                 PFCC.state.transactions[index].amount = computedAmount;
+                PFCC.state.transactions[index].isTransfer = isTransfer;
+                PFCC.state.transactions[index].transferAmount = isTransfer ? Math.abs(rawAmount) : undefined;
                 PFCC.state.transactions[index].category = el.category.value;
                 PFCC.state.transactions[index].date = el.date.value;
                 PFCC.state.transactions[index].tags = parsedTags;
@@ -131,6 +146,8 @@
                 id: Math.floor(Math.random() * 100000000).toString(16),
                 text: textVal,
                 amount: computedAmount,
+                isTransfer,
+                transferAmount: isTransfer ? Math.abs(rawAmount) : undefined,
                 category: el.category.value,
                 date: el.date.value,
                 tags: parsedTags,
@@ -141,11 +158,13 @@
             el.text.value = '';
             el.amount.value = '';
             el.tags.value = '';
+            if (el.fxForeignAmount) el.fxForeignAmount.value = '';
+            if (el.fxRate) el.fxRate.value = '';
             if (el.receiptFile) el.receiptFile.value = '';
             if (el.receiptData) el.receiptData.value = '';
             if (el.btnClearReceipt) el.btnClearReceipt.style.display = 'none';
             el.text.focus();
-            PFCC.showToast('Transaction committed.', 'success');
+            PFCC.showToast(isTransfer ? 'Transfer logged (excluded from burn).' : 'Transaction committed.', 'success');
         }
 
         PFCC.audio.playSuccessSound();
@@ -153,16 +172,161 @@
     }
 
     function removeTransaction(id) {
+        const idx = PFCC.state.transactions.findIndex(t => t.id === id);
+        if (idx === -1) return;
+        const removedTx = Object.assign({}, PFCC.state.transactions[idx]);
         PFCC.state.transactions = PFCC.state.transactions.filter(t => t.id !== id);
-        if (PFCC.dom.editId.value === id) cancelEditTransaction();
+        PFCC.state.selectedLedgerIds = (PFCC.state.selectedLedgerIds || []).filter(sid => sid !== id);
+        if (PFCC.dom.editId && PFCC.dom.editId.value === id) cancelEditTransaction();
         PFCC.audio.playWarningSound();
         PFCC.updateDOM();
-        PFCC.showToast('Transaction removed.', 'info');
+        PFCC.showToast(`Removed "${removedTx.text}".`, 'info', {
+            actionLabel: 'Undo',
+            onAction: () => {
+                PFCC.state.transactions.splice(Math.min(idx, PFCC.state.transactions.length), 0, removedTx);
+                PFCC.audio.playSuccessSound();
+                PFCC.updateDOM();
+            }
+        });
+    }
+
+    function renderQuickPresets() {
+        const el = PFCC.dom;
+        if (!el.quickPresetsBar) return;
+        el.quickPresetsBar.textContent = '';
+
+        (PFCC.state.quickPresets || []).forEach(preset => {
+            const chip = PFCC.utils.createEl('div', 'preset-chip');
+            const applyBtn = PFCC.utils.createEl('button', 'preset-apply-btn');
+            applyBtn.type = 'button';
+            const sign = preset.type === 'income' ? '+' : (preset.type === 'transfer' ? '' : '-');
+            applyBtn.textContent = `${preset.text} ${sign}${PFCC.utils.formatCurrency(preset.amount)}`;
+            applyBtn.addEventListener('click', () => {
+                if (typeof PFCC.setQuickEntryCollapsed === 'function') PFCC.setQuickEntryCollapsed(false);
+                if (el.text) el.text.value = preset.text || '';
+                if (el.amount) el.amount.value = preset.amount || '';
+                if (el.type) el.type.value = preset.type || 'expense';
+                if (el.category) el.category.value = preset.category || 'Other';
+                if (PFCC.picker && typeof PFCC.picker.syncSelect === 'function') {
+                    PFCC.picker.syncSelect(el.type);
+                    PFCC.picker.syncSelect(el.category);
+                }
+                PFCC.audio.playClickSound();
+                if (el.btnSubmitTx) el.btnSubmitTx.focus();
+            });
+
+            const rmBtn = PFCC.utils.createEl('button', 'preset-remove-btn');
+            rmBtn.type = 'button';
+            rmBtn.setAttribute('aria-label', `Remove preset ${preset.text}`);
+            rmBtn.appendChild(PFCC.icons.create('close', 11));
+            rmBtn.addEventListener('click', e => {
+                e.stopPropagation();
+                PFCC.state.quickPresets = (PFCC.state.quickPresets || []).filter(p => p.id !== preset.id);
+                PFCC.utils.safeSaveJSON('appQuickPresets', PFCC.state.quickPresets);
+                renderQuickPresets();
+            });
+
+            chip.appendChild(applyBtn);
+            chip.appendChild(rmBtn);
+            el.quickPresetsBar.appendChild(chip);
+        });
+
+        const addPresetBtn = PFCC.utils.createEl('button', 'btn btn-outline btn-sm preset-save-btn', '+ Save Preset');
+        addPresetBtn.type = 'button';
+        addPresetBtn.title = 'Save current Quick Entry fields as a 1-tap preset';
+        addPresetBtn.addEventListener('click', () => {
+            const txt = el.text ? el.text.value.trim() : '';
+            const amt = el.amount ? parseFloat(el.amount.value) : NaN;
+            if (!txt || Number.isNaN(amt) || amt <= 0) {
+                PFCC.audio.playWarningSound();
+                PFCC.showToast('Enter Description and Amount first to save a preset.', 'info');
+                return;
+            }
+            PFCC.state.quickPresets.push({
+                id: 'pre-' + Math.floor(Math.random() * 1000000),
+                text: txt,
+                amount: Math.abs(amt),
+                type: el.type ? el.type.value : 'expense',
+                category: el.category ? el.category.value : 'Other'
+            });
+            PFCC.utils.safeSaveJSON('appQuickPresets', PFCC.state.quickPresets);
+            renderQuickPresets();
+            PFCC.audio.playSuccessSound();
+            PFCC.showToast(`Saved "${txt}" quick preset.`, 'success');
+        });
+        el.quickPresetsBar.appendChild(addPresetBtn);
+    }
+
+    function updateBulkBarUI() {
+        const el = PFCC.dom;
+        const count = (PFCC.state.selectedLedgerIds || []).length;
+        if (el.bulkSelectedCount) el.bulkSelectedCount.textContent = `${count} selected`;
+        if (el.bulkActionBar) {
+            el.bulkActionBar.style.display = PFCC.state.bulkSelectActive ? 'flex' : 'none';
+        }
+        if (el.btnToggleBulkSelect) {
+            el.btnToggleBulkSelect.classList.toggle('active', Boolean(PFCC.state.bulkSelectActive));
+            el.btnToggleBulkSelect.setAttribute('aria-pressed', String(Boolean(PFCC.state.bulkSelectActive)));
+        }
+        const wrap = document.querySelector('.ledger-table-wrap');
+        if (wrap) wrap.classList.toggle('ledger-bulk-mode', Boolean(PFCC.state.bulkSelectActive));
+    }
+
+    function bindRowSwipeActions(tr, t) {
+        let startX = 0;
+        let startY = 0;
+        let tracking = false;
+
+        tr.addEventListener('touchstart', e => {
+            if (!e.touches || !e.touches[0]) return;
+            const targetTag = e.target && e.target.tagName ? e.target.tagName.toUpperCase() : '';
+            if (targetTag === 'BUTTON' || targetTag === 'INPUT' || (e.target && e.target.closest && e.target.closest('button'))) {
+                tracking = false;
+                return;
+            }
+            startX = e.touches[0].clientX;
+            startY = e.touches[0].clientY;
+            tracking = true;
+        }, { passive: true });
+
+        tr.addEventListener('touchmove', e => {
+            if (!tracking || !e.touches || !e.touches[0]) return;
+            const dx = e.touches[0].clientX - startX;
+            const dy = e.touches[0].clientY - startY;
+            if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 14) {
+                tracking = false;
+                tr.style.webkitTransform = '';
+                tr.style.transform = '';
+                return;
+            }
+            if (Math.abs(dx) > 12) {
+                const clamped = Math.max(-88, Math.min(88, dx));
+                const tx = `translate3d(${clamped}px, 0, 0)`;
+                tr.style.webkitTransform = tx;
+                tr.style.transform = tx;
+            }
+        }, { passive: true });
+
+        tr.addEventListener('touchend', e => {
+            if (!tracking) return;
+            tracking = false;
+            tr.style.webkitTransform = '';
+            tr.style.transform = '';
+            const endX = (e.changedTouches && e.changedTouches[0]) ? e.changedTouches[0].clientX : startX;
+            const dx = endX - startX;
+            if (dx > 68) {
+                startEditTransaction(t);
+            } else if (dx < -68) {
+                removeTransaction(t.id);
+            }
+        }, { passive: true });
     }
 
     function addTransactionRow(t, runningBal) {
         const el = PFCC.dom;
-        const isExpense = t.amount < 0;
+        const isTransfer = PFCC.utils.isTransferTx(t);
+        const isExpense = !isTransfer && t.amount < 0;
+        const displayAmt = isTransfer ? PFCC.utils.getTransferAmount(t) : Math.abs(t.amount);
         const tr = document.createElement('tr');
         tr.className = 'ledger-row';
 
@@ -171,7 +335,25 @@
 
         const tdDesc = PFCC.utils.createEl('td', 'col-desc');
         tdDesc.setAttribute('data-label', 'Description');
-        tdDesc.appendChild(PFCC.utils.createEl('div', 'ledger-desc', t.text));
+
+        const descRow = PFCC.utils.createEl('div', 'ledger-desc-line');
+        const chk = document.createElement('input');
+        chk.type = 'checkbox';
+        chk.className = 'ledger-bulk-check';
+        chk.checked = (PFCC.state.selectedLedgerIds || []).includes(t.id);
+        chk.setAttribute('aria-label', `Select ${t.text}`);
+        chk.addEventListener('change', () => {
+            const list = PFCC.state.selectedLedgerIds || [];
+            if (chk.checked) {
+                if (!list.includes(t.id)) list.push(t.id);
+            } else {
+                PFCC.state.selectedLedgerIds = list.filter(id => id !== t.id);
+            }
+            updateBulkBarUI();
+        });
+        descRow.appendChild(chk);
+        descRow.appendChild(PFCC.utils.createEl('span', 'ledger-desc', t.text));
+        tdDesc.appendChild(descRow);
 
         if (t.tags && t.tags.length > 0) {
             const tagRow = PFCC.utils.createEl('div', 'ledger-tags-inline');
@@ -181,12 +363,18 @@
 
         const tdCat = PFCC.utils.createEl('td', 'col-cat');
         tdCat.setAttribute('data-label', 'Category');
-        tdCat.appendChild(PFCC.utils.createEl('span', 'ledger-badge', t.category));
+        if (isTransfer) {
+            tdCat.appendChild(PFCC.utils.createEl('span', 'ledger-badge ledger-badge-transfer', 'Transfer'));
+        } else {
+            tdCat.appendChild(PFCC.utils.createEl('span', 'ledger-badge', PFCC.utils.formatCategoryLabel(t.category)));
+        }
 
+        const deltaCls = isTransfer ? 'transfer' : (isExpense ? 'minus' : 'plus');
+        const deltaPrefix = isTransfer ? 'XFER ' : (isExpense ? '-' : '+');
         const tdDelta = PFCC.utils.createEl(
             'td',
-            `col-delta ledger-amount ${isExpense ? 'minus' : 'plus'}`,
-            `${isExpense ? '-' : '+'}${PFCC.utils.formatCurrency(Math.abs(t.amount))}`
+            `col-delta ledger-amount ${deltaCls}`,
+            `${deltaPrefix}${PFCC.utils.formatCurrency(displayAmt)}`
         );
         tdDelta.setAttribute('data-label', 'Delta');
 
@@ -238,6 +426,7 @@
         tr.appendChild(tdDelta);
         tr.appendChild(tdBal);
         tr.appendChild(tdAct);
+        bindRowSwipeActions(tr, t);
         el.list.appendChild(tr);
     }
 
@@ -249,8 +438,10 @@
         const searchTerm = (el.searchFilter ? el.searchFilter.value : '').trim().toLowerCase();
 
         const activeData = timeframeFiltered.filter(t => {
-            if (state.ledgerFilter.type === 'expense' && t.amount >= 0) return false;
-            if (state.ledgerFilter.type === 'income' && t.amount <= 0) return false;
+            const isXfer = PFCC.utils.isTransferTx(t);
+            if (state.ledgerFilter.type === 'expense' && (isXfer || t.amount >= 0)) return false;
+            if (state.ledgerFilter.type === 'income' && (isXfer || t.amount <= 0)) return false;
+            if (state.ledgerFilter.type === 'transfer' && !isXfer) return false;
             if (state.ledgerFilter.category !== 'all' && t.category !== state.ledgerFilter.category) return false;
 
             if (searchTerm) {
@@ -299,11 +490,53 @@
         }
 
         activeData.forEach(t => addTransactionRow(t, runningMap.get(t.id) || 0));
+        updateBulkBarUI();
+    }
+
+    function renderUpcomingBillsBanner() {
+        const el = PFCC.dom;
+        if (!el.upcomingBillsBanner || !PFCC.planning || typeof PFCC.planning.getUpcomingCommitments !== 'function') return;
+        const upcoming = PFCC.planning.getUpcomingCommitments(7);
+        el.upcomingBillsBanner.textContent = '';
+        if (upcoming.length === 0) {
+            el.upcomingBillsBanner.style.display = 'none';
+            return;
+        }
+        el.upcomingBillsBanner.style.display = 'flex';
+        const first = upcoming[0];
+        const dueLabel = first.daysAway === 0 ? 'Due today' : (first.daysAway === 1 ? 'Due tomorrow' : `Due in ${first.daysAway}d`);
+
+        const info = PFCC.utils.createEl('div', 'upcoming-bills-info');
+        info.appendChild(PFCC.icons.create('calendar', 14));
+        const extraTxt = upcoming.length > 1 ? ` (+${upcoming.length - 1} more in 7d)` : '';
+        info.appendChild(PFCC.utils.createEl('span', '', `${first.name} (${PFCC.utils.formatCurrency(first.amount)}) - ${dueLabel}${extraTxt}`));
+
+        const commitBtn = PFCC.utils.createEl('button', 'btn btn-outline btn-sm', 'Commit');
+        commitBtn.type = 'button';
+        commitBtn.addEventListener('click', () => {
+            const t = {
+                id: Math.floor(Math.random() * 100000000).toString(16),
+                text: first.name,
+                amount: -Math.abs(first.amount),
+                category: first.category || 'Other',
+                date: PFCC.utils.getLocalDateString(),
+                tags: ['#upcoming', first.kind === 'debt' ? '#debt' : '#subscription']
+            };
+            PFCC.utils.applyAutoRules(t);
+            PFCC.state.transactions.push(t);
+            PFCC.audio.playSuccessSound();
+            PFCC.updateDOM();
+            PFCC.showToast(`Committed ${first.name} (${PFCC.utils.formatCurrency(first.amount)}) to ledger.`, 'success');
+        });
+
+        el.upcomingBillsBanner.appendChild(info);
+        el.upcomingBillsBanner.appendChild(commitBtn);
     }
 
     function renderSubscriptions() {
         const el = PFCC.dom;
         if (!el.subList) return;
+        renderUpcomingBillsBanner();
         el.subList.textContent = '';
         let monthlyBurn = 0;
 
@@ -330,7 +563,7 @@
             const meta = PFCC.utils.createEl(
                 'div',
                 'sub-meta',
-                `${sub.billingCycle.toUpperCase()} | ${PFCC.utils.formatCurrency(sub.amount)} (${PFCC.utils.formatCurrency(normalizedMonthly)}/mo)`
+                `${sub.billingCycle.toUpperCase()} | ${PFCC.utils.formatCurrency(sub.amount)} (${PFCC.utils.formatCurrency(normalizedMonthly)}/mo)${sub.billingDay ? ' | Day ' + sub.billingDay : ''}`
             );
 
             info.appendChild(nameSpan);
@@ -362,10 +595,20 @@
             delBtn.setAttribute('aria-label', `Delete subscription ${sub.name}`);
             delBtn.appendChild(PFCC.icons.create('close', 14));
             delBtn.addEventListener('click', () => {
+                const backupSub = Object.assign({}, sub);
                 PFCC.state.subscriptions = PFCC.state.subscriptions.filter(s => s.id !== sub.id);
                 PFCC.utils.safeSaveJSON('appSubscriptions', PFCC.state.subscriptions);
                 PFCC.audio.playWarningSound();
                 PFCC.updateDOM();
+                PFCC.showToast(`Removed subscription "${backupSub.name}".`, 'info', {
+                    actionLabel: 'Undo',
+                    onAction: () => {
+                        PFCC.state.subscriptions.push(backupSub);
+                        PFCC.utils.safeSaveJSON('appSubscriptions', PFCC.state.subscriptions);
+                        PFCC.audio.playSuccessSound();
+                        PFCC.updateDOM();
+                    }
+                });
             });
 
             actions.appendChild(commitBtn);
@@ -449,10 +692,20 @@
             delBtn.setAttribute('aria-label', `Delete IOU for ${iou.person}`);
             delBtn.appendChild(PFCC.icons.create('close', 14));
             delBtn.addEventListener('click', () => {
+                const backupIou = Object.assign({}, iou);
                 PFCC.state.ious = PFCC.state.ious.filter(i => i.id !== iou.id);
                 PFCC.utils.safeSaveJSON('appIous', PFCC.state.ious);
                 PFCC.audio.playWarningSound();
                 renderIous();
+                PFCC.showToast(`Removed IOU with ${backupIou.person}.`, 'info', {
+                    actionLabel: 'Undo',
+                    onAction: () => {
+                        PFCC.state.ious.push(backupIou);
+                        PFCC.utils.safeSaveJSON('appIous', PFCC.state.ious);
+                        PFCC.audio.playSuccessSound();
+                        renderIous();
+                    }
+                });
             });
             actions.appendChild(delBtn);
 
@@ -515,6 +768,100 @@
 
         if (el.searchFilter) {
             el.searchFilter.addEventListener('input', () => renderLedger());
+        }
+
+        function syncFxAmount() {
+            if (!el.fxForeignAmount || !el.fxRate || !el.amount) return;
+            const fa = parseFloat(el.fxForeignAmount.value);
+            const r = parseFloat(el.fxRate.value);
+            if (!Number.isNaN(fa) && fa > 0 && !Number.isNaN(r) && r > 0) {
+                el.amount.value = (fa * r).toFixed(2);
+            }
+        }
+        if (el.fxForeignAmount) el.fxForeignAmount.addEventListener('input', syncFxAmount);
+        if (el.fxRate) el.fxRate.addEventListener('input', syncFxAmount);
+
+        if (el.btnToggleBulkSelect) {
+            el.btnToggleBulkSelect.addEventListener('click', () => {
+                PFCC.state.bulkSelectActive = !PFCC.state.bulkSelectActive;
+                if (!PFCC.state.bulkSelectActive) PFCC.state.selectedLedgerIds = [];
+                updateBulkBarUI();
+                renderLedger();
+                PFCC.audio.playClickSound();
+            });
+        }
+        if (el.btnBulkApplyCat) {
+            el.btnBulkApplyCat.addEventListener('click', () => {
+                const ids = PFCC.state.selectedLedgerIds || [];
+                const targetCat = el.bulkCategorySelect ? el.bulkCategorySelect.value : '';
+                if (!ids.length || !targetCat) {
+                    PFCC.showToast('Select at least one entry first.', 'info');
+                    return;
+                }
+                PFCC.state.transactions.forEach(t => {
+                    if (ids.includes(t.id)) t.category = targetCat;
+                });
+                PFCC.state.selectedLedgerIds = [];
+                PFCC.state.bulkSelectActive = false;
+                PFCC.audio.playSuccessSound();
+                PFCC.updateDOM();
+                PFCC.showToast(`Updated category to ${PFCC.utils.formatCategoryLabel(targetCat)} for ${ids.length} entries.`, 'success');
+            });
+        }
+        if (el.btnBulkAddTag) {
+            el.btnBulkAddTag.addEventListener('click', () => {
+                const ids = PFCC.state.selectedLedgerIds || [];
+                if (!ids.length) {
+                    PFCC.showToast('Select at least one entry first.', 'info');
+                    return;
+                }
+                PFCC.openActionDialog({
+                    title: 'Bulk Add #Tag',
+                    message: `Add a tag across ${ids.length} selected transaction(s):`,
+                    input: true,
+                    inputType: 'text',
+                    inputLabel: 'Tag Name',
+                    placeholder: 'e.g. #reconciled',
+                    confirmLabel: 'Apply Tag',
+                    onConfirm: rawTag => {
+                        const cleanTag = rawTag.startsWith('#') ? rawTag : ('#' + rawTag.replace(/\s+/g, ''));
+                        PFCC.state.transactions.forEach(t => {
+                            if (ids.includes(t.id)) {
+                                if (!t.tags) t.tags = [];
+                                if (!t.tags.includes(cleanTag)) t.tags.push(cleanTag);
+                            }
+                        });
+                        PFCC.state.selectedLedgerIds = [];
+                        PFCC.state.bulkSelectActive = false;
+                        PFCC.audio.playSuccessSound();
+                        PFCC.updateDOM();
+                        PFCC.showToast(`Tagged ${ids.length} entries with ${cleanTag}.`, 'success');
+                    }
+                });
+            });
+        }
+        if (el.btnBulkDelete) {
+            el.btnBulkDelete.addEventListener('click', () => {
+                const ids = PFCC.state.selectedLedgerIds || [];
+                if (!ids.length) {
+                    PFCC.showToast('Select at least one entry first.', 'info');
+                    return;
+                }
+                const removedBatch = PFCC.state.transactions.filter(t => ids.includes(t.id)).map(t => Object.assign({}, t));
+                PFCC.state.transactions = PFCC.state.transactions.filter(t => !ids.includes(t.id));
+                PFCC.state.selectedLedgerIds = [];
+                PFCC.state.bulkSelectActive = false;
+                PFCC.audio.playWarningSound();
+                PFCC.updateDOM();
+                PFCC.showToast(`Removed ${removedBatch.length} entries.`, 'info', {
+                    actionLabel: 'Undo',
+                    onAction: () => {
+                        PFCC.state.transactions = PFCC.state.transactions.concat(removedBatch);
+                        PFCC.audio.playSuccessSound();
+                        PFCC.updateDOM();
+                    }
+                });
+            });
         }
 
         if (el.btnCloseReceipt) el.btnCloseReceipt.addEventListener('click', closeReceiptLightbox);
@@ -624,6 +971,8 @@
                 e.preventDefault();
                 const name = el.subName.value.trim();
                 const amount = parseFloat(el.subAmount.value);
+                const billingDayRaw = el.subBillingDay ? parseInt(el.subBillingDay.value, 10) : NaN;
+                const billingDay = (!Number.isNaN(billingDayRaw) && billingDayRaw >= 1 && billingDayRaw <= 31) ? billingDayRaw : null;
                 if (!name || Number.isNaN(amount) || amount <= 0) return;
 
                 PFCC.state.subscriptions.push({
@@ -631,11 +980,13 @@
                     name,
                     amount,
                     billingCycle: el.subCycle.value,
+                    billingDay,
                     category: el.subCategory.value
                 });
                 PFCC.utils.safeSaveJSON('appSubscriptions', PFCC.state.subscriptions);
                 el.subName.value = '';
                 el.subAmount.value = '';
+                if (el.subBillingDay) el.subBillingDay.value = '';
                 el.subFormDrawer.classList.remove('active');
                 PFCC.audio.playSuccessSound();
                 PFCC.updateDOM();
@@ -689,6 +1040,7 @@
         startEditTransaction,
         cancelEditTransaction,
         removeTransaction,
+        renderQuickPresets,
         renderLedger,
         renderSubscriptions,
         renderIous,

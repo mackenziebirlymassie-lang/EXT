@@ -6,8 +6,8 @@
     function calculateRunway(activeTxs, allTxs) {
         const txs = allTxs || PFCC.state.transactions;
         const netBalance = txs.reduce((acc, t) => acc + t.amount, 0);
-        const totalExp = activeTxs.filter(t => t.amount < 0).reduce((acc, t) => acc + Math.abs(t.amount), 0);
-        const income = activeTxs.filter(t => t.amount > 0).reduce((acc, t) => acc + t.amount, 0);
+        const totalExp = activeTxs.reduce((acc, t) => acc + PFCC.utils.getExpenseAmount(t), 0);
+        const income = activeTxs.reduce((acc, t) => acc + PFCC.utils.getIncomeAmount(t), 0);
 
         if (totalExp === 0) return { text: 'No Burn', months: Infinity, status: 'safe' };
         if (income >= totalExp) return { text: 'Cash Positive', months: Infinity, status: 'positive' };
@@ -27,8 +27,8 @@
     function computeFinancialRatios(activeTxs, allTxs, subs, taxRateVal) {
         const txs = allTxs || PFCC.state.transactions;
         const subscriptions = subs || PFCC.state.subscriptions;
-        const inc = activeTxs.filter(t => t.amount > 0).reduce((s, t) => s + t.amount, 0);
-        const exp = activeTxs.filter(t => t.amount < 0).reduce((s, t) => s + Math.abs(t.amount), 0);
+        const inc = activeTxs.reduce((s, t) => s + PFCC.utils.getIncomeAmount(t), 0);
+        const exp = activeTxs.reduce((s, t) => s + PFCC.utils.getExpenseAmount(t), 0);
 
         const savingsRate = inc > 0 ? ((inc - exp) / inc) * 100 : null;
 
@@ -37,7 +37,7 @@
         }, 0);
         const fixedBurnRatio = exp > 0 ? Math.min(999, (monthlySubs / exp) * 100) : (monthlySubs > 0 ? 100 : 0);
 
-        const allIncome = txs.filter(t => t.amount > 0).reduce((s, t) => s + t.amount, 0);
+        const allIncome = txs.reduce((s, t) => s + PFCC.utils.getIncomeAmount(t), 0);
         const liquidBalance = txs.reduce((s, t) => s + t.amount, 0);
         const taxReserve = allIncome * (taxRateVal || 0.25);
         const taxDelta = liquidBalance - taxReserve;
@@ -144,8 +144,9 @@
         }
 
         if (settings.categoryBudgets) {
-            const catExpenses = activeTimeframeTxs.filter(t => t.amount < 0).reduce((acc, t) => {
-                acc[t.category] = (acc[t.category] || 0) + Math.abs(t.amount);
+            const catExpenses = activeTimeframeTxs.reduce((acc, t) => {
+                const expAmt = PFCC.utils.getExpenseAmount(t);
+                if (expAmt > 0) acc[t.category] = (acc[t.category] || 0) + expAmt;
                 return acc;
             }, {});
 
@@ -197,8 +198,9 @@
         el.envelopesGrid.textContent = '';
 
         const budgets = PFCC.state.settings.categoryBudgets || { Software: 150, Food: 400, Housing: 1000, Transport: 150 };
-        const catExpenses = activeTimeframeTxs.filter(t => t.amount < 0).reduce((acc, t) => {
-            acc[t.category] = (acc[t.category] || 0) + Math.abs(t.amount);
+        const catExpenses = activeTimeframeTxs.reduce((acc, t) => {
+            const expAmt = PFCC.utils.getExpenseAmount(t);
+            if (expAmt > 0) acc[t.category] = (acc[t.category] || 0) + expAmt;
             return acc;
         }, {});
 
@@ -278,8 +280,8 @@
         el.simAnnualGrowthVal.textContent = `${Math.round(growthRate * 100)}% / yr`;
 
         const timeframeFiltered = PFCC.utils.getFilteredTransactionsByTimeframe(PFCC.state.transactions, PFCC.state.timeframe);
-        const curInc = timeframeFiltered.filter(i => i.amount > 0).reduce((acc, i) => acc + i.amount, 0);
-        const curExp = timeframeFiltered.filter(i => i.amount < 0).reduce((acc, i) => acc + Math.abs(i.amount), 0);
+        const curInc = timeframeFiltered.reduce((acc, i) => acc + PFCC.utils.getIncomeAmount(i), 0);
+        const curExp = timeframeFiltered.reduce((acc, i) => acc + PFCC.utils.getExpenseAmount(i), 0);
 
         const baseMonthlyNet = curInc - curExp;
         const simInc = Math.max(0, curInc + incomeShift);
@@ -340,7 +342,7 @@
         const dayMap = {};
         PFCC.state.transactions.forEach(t => {
             const d = t.date;
-            if (!d || !d.startsWith(String(year))) return;
+            if (!d || !d.startsWith(String(year)) || PFCC.utils.isTransferTx(t)) return;
             if (!dayMap[d]) dayMap[d] = { income: 0, expense: 0 };
             if (t.amount > 0) dayMap[d].income += t.amount;
             else dayMap[d].expense += Math.abs(t.amount);
@@ -436,7 +438,7 @@
     function updateFIREAndTax() {
         const el = PFCC.dom;
         const txs = PFCC.state.transactions;
-        const allIncome = txs.filter(t => t.amount > 0).reduce((a, t) => a + t.amount, 0);
+        const allIncome = txs.reduce((a, t) => a + PFCC.utils.getIncomeAmount(t), 0);
         const lifetimeBalance = txs.reduce((a, t) => a + t.amount, 0);
 
         const sixMonthsAgo = new Date();
@@ -444,8 +446,8 @@
         const recentTxs = txs.filter(t => new Date(t.date) >= sixMonthsAgo);
         const monthsSpan = Math.max(1, Math.ceil((Date.now() - sixMonthsAgo.getTime()) / (30.44 * 86400000)));
 
-        const monthlyIncome = recentTxs.filter(t => t.amount > 0).reduce((a, t) => a + t.amount, 0) / monthsSpan;
-        const monthlyExpense = recentTxs.filter(t => t.amount < 0).reduce((a, t) => a + Math.abs(t.amount), 0) / monthsSpan;
+        const monthlyIncome = recentTxs.reduce((a, t) => a + PFCC.utils.getIncomeAmount(t), 0) / monthsSpan;
+        const monthlyExpense = recentTxs.reduce((a, t) => a + PFCC.utils.getExpenseAmount(t), 0) / monthsSpan;
         const monthlySavings = monthlyIncome - monthlyExpense;
         const annualBurn = monthlyExpense * 12;
 
@@ -581,10 +583,20 @@
                     confirmLabel: 'Delete',
                     danger: true,
                     onConfirm: () => {
+                        const backupVault = Object.assign({}, vault);
                         PFCC.state.savingsVaults = PFCC.state.savingsVaults.filter(v => v.id !== vault.id);
                         PFCC.utils.safeSaveJSON('appSavingsVaults', PFCC.state.savingsVaults);
                         renderVaults();
                         PFCC.audio.playWarningSound();
+                        PFCC.showToast(`Removed vault "${backupVault.name}".`, 'info', {
+                            actionLabel: 'Undo',
+                            onAction: () => {
+                                PFCC.state.savingsVaults.push(backupVault);
+                                PFCC.utils.safeSaveJSON('appSavingsVaults', PFCC.state.savingsVaults);
+                                renderVaults();
+                                PFCC.audio.playSuccessSound();
+                            }
+                        });
                     }
                 });
             });
@@ -651,7 +663,7 @@
             const metaEl = PFCC.utils.createEl(
                 'div',
                 'debt-meta',
-                `${debt.rate ? debt.rate + '% APR' : '0% APR'} | Min: ${PFCC.utils.formatCurrency(debt.minPayment)}/mo`
+                `${debt.rate ? debt.rate + '% APR' : '0% APR'} | Min: ${PFCC.utils.formatCurrency(debt.minPayment)}/mo${debt.billingDay ? ' | Due Day ' + debt.billingDay : ''}`
             );
             info.appendChild(nameEl);
             info.appendChild(metaEl);
@@ -691,10 +703,26 @@
                     confirmLabel: 'Remove',
                     danger: true,
                     onConfirm: () => {
+                        const backupDebt = Object.assign({}, debt);
                         PFCC.state.debts = PFCC.state.debts.filter(d => d.id !== debt.id);
                         PFCC.utils.safeSaveJSON('appDebts', PFCC.state.debts);
                         renderDebts();
+                        if (PFCC.ledger && typeof PFCC.ledger.renderSubscriptions === 'function') {
+                            PFCC.ledger.renderSubscriptions();
+                        }
                         PFCC.audio.playWarningSound();
+                        PFCC.showToast(`Removed debt "${backupDebt.name}".`, 'info', {
+                            actionLabel: 'Undo',
+                            onAction: () => {
+                                PFCC.state.debts.push(backupDebt);
+                                PFCC.utils.safeSaveJSON('appDebts', PFCC.state.debts);
+                                renderDebts();
+                                if (PFCC.ledger && typeof PFCC.ledger.renderSubscriptions === 'function') {
+                                    PFCC.ledger.renderSubscriptions();
+                                }
+                                PFCC.audio.playSuccessSound();
+                            }
+                        });
                     }
                 });
             });
@@ -872,6 +900,8 @@
                 const balance = parseFloat(el.debtBalance.value);
                 const rate = parseFloat(el.debtRate.value) || 0;
                 const minPayment = parseFloat(el.debtMinPayment.value);
+                const billingDayRaw = el.debtBillingDay ? parseInt(el.debtBillingDay.value, 10) : NaN;
+                const billingDay = (!Number.isNaN(billingDayRaw) && billingDayRaw >= 1 && billingDayRaw <= 31) ? billingDayRaw : null;
                 if (!name || Number.isNaN(balance) || Number.isNaN(minPayment)) return;
 
                 PFCC.state.debts.push({
@@ -879,15 +909,71 @@
                     name,
                     balance,
                     rate,
-                    minPayment
+                    minPayment,
+                    billingDay
                 });
                 PFCC.utils.safeSaveJSON('appDebts', PFCC.state.debts);
                 el.debtForm.reset();
                 el.debtFormDrawer.classList.remove('active');
                 renderDebts();
+                if (PFCC.ledger && typeof PFCC.ledger.renderSubscriptions === 'function') {
+                    PFCC.ledger.renderSubscriptions();
+                }
                 PFCC.audio.playSuccessSound();
             });
         }
+    }
+
+    function getDaysUntilBillingDay(billingDay, fromDate) {
+        const day = parseInt(billingDay, 10);
+        if (!day || day < 1 || day > 31) return null;
+        const base = fromDate ? new Date(fromDate.getFullYear(), fromDate.getMonth(), fromDate.getDate()) : new Date();
+        const curMonthDays = new Date(base.getFullYear(), base.getMonth() + 1, 0).getDate();
+        let due = new Date(base.getFullYear(), base.getMonth(), Math.min(day, curMonthDays));
+        if (due.getTime() < base.getTime()) {
+            const nextM = base.getMonth() + 1;
+            const nextMonthDays = new Date(base.getFullYear(), nextM + 1, 0).getDate();
+            due = new Date(base.getFullYear(), nextM, Math.min(day, nextMonthDays));
+        }
+        return Math.round((due.getTime() - base.getTime()) / 86400000);
+    }
+
+    function getUpcomingCommitments(horizonDays, refDate) {
+        const maxDays = horizonDays === undefined ? 7 : horizonDays;
+        const today = refDate || new Date();
+        const upcoming = [];
+
+        (PFCC.state.subscriptions || []).forEach(sub => {
+            const daysAway = getDaysUntilBillingDay(sub.billingDay, today);
+            if (daysAway !== null && daysAway <= maxDays) {
+                upcoming.push({
+                    kind: 'sub',
+                    item: sub,
+                    name: sub.name,
+                    amount: sub.amount,
+                    category: sub.category || 'Software',
+                    daysAway
+                });
+            }
+        });
+
+        (PFCC.state.debts || []).forEach(debt => {
+            if (!debt || debt.balance <= 0) return;
+            const daysAway = getDaysUntilBillingDay(debt.billingDay, today);
+            if (daysAway !== null && daysAway <= maxDays) {
+                upcoming.push({
+                    kind: 'debt',
+                    item: debt,
+                    name: debt.name + ' (Min Pay)',
+                    amount: debt.minPayment,
+                    category: 'Other',
+                    daysAway
+                });
+            }
+        });
+
+        upcoming.sort((a, b) => a.daysAway - b.daysAway);
+        return upcoming;
     }
 
     PFCC.planning = {
@@ -904,6 +990,7 @@
         renderVaults,
         calculateDebtPayoffSchedule,
         renderDebts,
+        getUpcomingCommitments,
         initPlanning
     };
 })(window);

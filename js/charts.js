@@ -82,10 +82,11 @@
 
         const dailySpend = new Array(daysInMonth).fill(0);
         allTransactions.forEach(t => {
-            if (t.amount < 0 && t.date && t.date.startsWith(prefix)) {
+            const expAmt = PFCC.utils.getExpenseAmount ? PFCC.utils.getExpenseAmount(t) : ((t.amount < 0) ? Math.abs(t.amount) : 0);
+            if (expAmt > 0 && t.date && t.date.startsWith(prefix)) {
                 const dayNum = parseInt(t.date.slice(8, 10), 10);
                 if (dayNum >= 1 && dayNum <= daysInMonth) {
-                    dailySpend[dayNum - 1] += Math.abs(t.amount);
+                    dailySpend[dayNum - 1] += expAmt;
                 }
             }
         });
@@ -109,7 +110,7 @@
     }
 
     function computeRankedCategories(activeTimeframeTxs, categoryBudgets) {
-        const expenses = activeTimeframeTxs.filter(t => t.amount < 0);
+        const expenses = activeTimeframeTxs.filter(t => !PFCC.utils.isTransferTx(t) && t.amount < 0);
         const totalSpent = expenses.reduce((sum, t) => sum + Math.abs(t.amount), 0);
         const buckets = {};
 
@@ -263,8 +264,8 @@
             const monthTxs = allTransactions.filter(t => t.date && t.date.startsWith(prefix));
             months.push({
                 label: monthNames[m],
-                inc: monthTxs.filter(t => t.amount > 0).reduce((a, t) => a + t.amount, 0),
-                exp: monthTxs.filter(t => t.amount < 0).reduce((a, t) => a + Math.abs(t.amount), 0)
+                inc: monthTxs.reduce((a, t) => a + PFCC.utils.getIncomeAmount(t), 0),
+                exp: monthTxs.reduce((a, t) => a + PFCC.utils.getExpenseAmount(t), 0)
             });
         }
 
@@ -571,6 +572,141 @@
         });
     }
 
+    function renderWrapupSnapshot() {
+        const el = PFCC.dom;
+        if (!el.wrapupCanvas) return;
+        const state = PFCC.state;
+        const theme = getTheme();
+        const tfTxs = PFCC.utils.getFilteredTransactionsByTimeframe(state.transactions, state.timeframe);
+        const inc = tfTxs.reduce((a, t) => a + PFCC.utils.getIncomeAmount(t), 0);
+        const exp = tfTxs.reduce((a, t) => a + PFCC.utils.getExpenseAmount(t), 0);
+        const netSaved = inc - exp;
+        const savingsRate = inc > 0 ? ((netSaved / inc) * 100).toFixed(1) + '%' : 'N/A';
+        const ranked = computeRankedCategories(tfTxs, state.settings.categoryBudgets);
+        const topCat = ranked.length > 0 ? `${PFCC.utils.formatCategoryLabel(ranked[0].category)} (${PFCC.utils.formatCurrency(ranked[0].total)})` : 'None';
+        const budget = Number(state.settings.budget) || 0;
+        const budgetUsage = budget > 0 ? `${((exp / budget) * 100).toFixed(0)}% of ${PFCC.utils.formatCurrency(budget)}` : 'No budget cap';
+        const runway = PFCC.planning ? PFCC.planning.calculateRunway(tfTxs, state.transactions) : { text: '--' };
+        const periodTitle = el.timeframeLabel ? el.timeframeLabel.textContent : 'Current Period';
+
+        if (el.wrapupSummaryGrid) {
+            el.wrapupSummaryGrid.textContent = '';
+            const cards = [
+                { label: 'Period Income', val: '+' + PFCC.utils.formatCurrency(inc), cls: 'text-green' },
+                { label: 'Period Expenses', val: '-' + PFCC.utils.formatCurrency(exp), cls: 'text-red' },
+                { label: 'Net Cashflow', val: (netSaved >= 0 ? '+' : '-') + PFCC.utils.formatCurrency(Math.abs(netSaved)), cls: netSaved >= 0 ? 'text-green' : 'text-red' },
+                { label: 'Savings Rate', val: savingsRate, cls: 'text-accent' },
+                { label: 'Top Spend Category', val: topCat, cls: 'text-primary' },
+                { label: 'Runway / Budget', val: `${runway.text} | ${budgetUsage}`, cls: 'text-accent' }
+            ];
+            cards.forEach(c => {
+                const box = PFCC.utils.createEl('div', 'submetric-card');
+                box.appendChild(PFCC.utils.createEl('span', 'submetric-label', c.label));
+                box.appendChild(PFCC.utils.createEl('h4', `submetric-val ${c.cls}`, c.val));
+                el.wrapupSummaryGrid.appendChild(box);
+            });
+        }
+
+        const canvas = el.wrapupCanvas;
+        const dpr = Math.min(global.devicePixelRatio || 1, 2);
+        const w = 640;
+        const h = 380;
+        canvas.width = w * dpr;
+        canvas.height = h * dpr;
+        canvas.style.width = '100%';
+        canvas.style.height = 'auto';
+        const ctx = canvas.getContext('2d');
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+        ctx.fillStyle = theme.bgMain;
+        ctx.fillRect(0, 0, w, h);
+
+        ctx.fillStyle = theme.bgSurface;
+        ctx.fillRect(20, 20, w - 40, h - 40);
+        ctx.strokeStyle = theme.accentFill;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(20, 20, w - 40, h - 40);
+
+        ctx.fillStyle = theme.accentText;
+        ctx.font = `700 13px ${state.settings.font}`;
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+        ctx.fillText(`EXT EXECUTIVE SNAPSHOT | ${String(periodTitle).toUpperCase()}`, 42, 42);
+
+        ctx.fillStyle = theme.textSec;
+        ctx.font = `500 12px ${state.settings.font}`;
+        ctx.fillText(`${state.settings.name || 'Developer'} | ${tfTxs.length} records`, 42, 66);
+
+        ctx.strokeStyle = theme.border;
+        ctx.beginPath();
+        ctx.moveTo(42, 92);
+        ctx.lineTo(w - 42, 92);
+        ctx.stroke();
+
+        const cols = [
+            { title: 'INCOME', val: '+' + PFCC.utils.formatCurrency(inc), color: theme.colorGreen },
+            { title: 'EXPENSES', val: '-' + PFCC.utils.formatCurrency(exp), color: theme.colorRed },
+            { title: 'NET SAVED', val: (netSaved >= 0 ? '+' : '-') + PFCC.utils.formatCurrency(Math.abs(netSaved)), color: netSaved >= 0 ? theme.colorGreen : theme.colorRed }
+        ];
+        cols.forEach((col, i) => {
+            const x = 42 + i * 192;
+            ctx.fillStyle = theme.textSec;
+            ctx.font = `600 11px ${state.settings.font}`;
+            ctx.fillText(col.title, x, 112);
+            ctx.fillStyle = col.color;
+            ctx.font = `700 20px ${state.settings.font}`;
+            ctx.fillText(col.val, x, 134);
+        });
+
+        ctx.fillStyle = theme.textSec;
+        ctx.font = `600 11px ${state.settings.font}`;
+        ctx.fillText('TOP EXPENSE ALLOCATION', 42, 186);
+
+        const topSlice = ranked.slice(0, 3);
+        if (topSlice.length === 0) {
+            ctx.fillStyle = theme.textSec;
+            ctx.font = `400 13px ${state.settings.font}`;
+            ctx.fillText('No expenses logged in this period.', 42, 212);
+        } else {
+            topSlice.forEach((catRow, idx) => {
+                const y = 210 + idx * 34;
+                ctx.fillStyle = theme.textMain;
+                ctx.font = `600 12px ${state.settings.font}`;
+                ctx.fillText(`${PFCC.utils.formatCategoryLabel(catRow.category)} (${catRow.sharePct.toFixed(0)}%)`, 42, y);
+                ctx.textAlign = 'right';
+                ctx.fillText(PFCC.utils.formatCurrency(catRow.total), w - 42, y);
+                ctx.textAlign = 'left';
+
+                ctx.fillStyle = theme.bgMain;
+                ctx.fillRect(42, y + 18, w - 84, 7);
+                ctx.fillStyle = theme.accentFill;
+                ctx.fillRect(42, y + 18, Math.max(4, ((w - 84) * catRow.sharePct) / 100), 7);
+            });
+        }
+
+        ctx.fillStyle = theme.textSec;
+        ctx.font = `500 11px ${state.settings.font}`;
+        ctx.fillText(`Savings Rate: ${savingsRate}  |  Runway: ${runway.text}  |  Budget: ${budgetUsage}`, 42, h - 54);
+    }
+
+    function downloadWrapupPng() {
+        const canvas = PFCC.dom && PFCC.dom.wrapupCanvas;
+        if (!canvas || typeof canvas.toDataURL !== 'function') return;
+        const dataUrl = canvas.toDataURL('image/png');
+        const filename = `ext_wrapup_${PFCC.utils.getLocalDateString()}.png`;
+        if (global.AndroidBridge && typeof global.AndroidBridge.saveBase64 === 'function') {
+            global.AndroidBridge.saveBase64(filename, dataUrl);
+            return;
+        }
+        const link = document.createElement('a');
+        link.download = filename;
+        link.href = dataUrl;
+        if (document.body) document.body.appendChild(link);
+        link.click();
+        setTimeout(() => link.remove(), 300);
+        PFCC.audio.playSuccessSound();
+    }
+
     PFCC.charts = {
         sizeHiDpiCanvas,
         formatShortMoney,
@@ -579,6 +715,8 @@
         renderForecastCanvas,
         updateCharts,
         updateUpperChart,
+        renderWrapupSnapshot,
+        downloadWrapupPng,
         initCharts
     };
 })(window);
