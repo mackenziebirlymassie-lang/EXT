@@ -225,7 +225,7 @@ test('safeSaveJSON gracefully handles QuotaExceededError without throwing', () =
 
 test('auto-categorization rules apply category and deduplicated tags', () => {
     const { PFCC } = loadAppModules();
-    const tx = { id: 'tx1', text: 'AWS EC2 Production Server', amount: -620, category: 'Other', tags: ['#cloud'] };
+    const tx = { id: 'tx1', text: 'Cloud Hosting Production Server', amount: -620, category: 'Other', tags: ['#cloud'] };
     PFCC.utils.applyAutoRules(tx);
     assert.equal(tx.category, 'Software');
     assert.deepEqual(tx.tags, ['#cloud', '#devops', '#major']);
@@ -516,8 +516,10 @@ test('Android APK project scaffold and synced www assets are complete and consis
     assert.equal(gradle.includes('syncWebAssets'), true);
     assert.equal(gradle.includes('APP_BUILD_NUMBER'), true);
     const manifest = fs.readFileSync(path.join(rootDir, 'android/app/src/main/AndroidManifest.xml'), 'utf8');
-    assert.equal(manifest.includes('REQUEST_INSTALL_PACKAGES'), true);
-    assert.equal(manifest.includes('ApkFileProvider'), true);
+    const githubManifest = fs.readFileSync(path.join(rootDir, 'android/app/src/github/AndroidManifest.xml'), 'utf8');
+    assert.equal(manifest.includes('REQUEST_INSTALL_PACKAGES'), false, 'main/AndroidManifest.xml must omit REQUEST_INSTALL_PACKAGES for Play Store compliance');
+    assert.equal(githubManifest.includes('REQUEST_INSTALL_PACKAGES'), true, 'github/AndroidManifest.xml must include REQUEST_INSTALL_PACKAGES for sideload updates');
+    assert.equal(githubManifest.includes('ApkFileProvider'), true);
     const java = fs.readFileSync(path.join(rootDir, 'android/app/src/main/java/org/pfcc/financeos/MainActivity.java'), 'utf8');
     assert.equal(java.includes('setDomStorageEnabled(true)'), true);
     assert.equal(java.includes('onShowFileChooser'), true);
@@ -718,4 +720,29 @@ test('Liquid Glass tokens derive per theme and Custom Picker + Liquid motion mod
     assert.equal(css.includes('.liquid-picker-sheet'), true, 'style.css must style custom liquid option picker sheet');
     assert.equal(css.includes('.liquid-enter-next'), true, 'style.css must include directional liquid enter animation');
     assert.equal(css.includes('.custom-select-trigger'), true, 'style.css must style custom select triggers');
+});
+
+test('Play Store, GDPR, UU PDP, and financial disclaimer safeguards are in place', () => {
+    const emojiRe = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u;
+    for (const doc of ['PRIVACY.md', 'TERMS.md']) {
+        const p = path.join(rootDir, doc);
+        assert.equal(fs.existsSync(p), true, `Missing required legal document: ${doc}`);
+        const content = fs.readFileSync(p, 'utf8');
+        assert.equal(content.includes('\u2014'), false, `${doc} contains forbidden em dash`);
+        assert.equal(emojiRe.test(content), false, `${doc} contains forbidden emoji`);
+    }
+    assert.equal(fs.readFileSync(path.join(rootDir, 'PRIVACY.md'), 'utf8').includes('UU PDP'), true);
+    assert.equal(fs.readFileSync(path.join(rootDir, 'TERMS.md'), 'utf8').includes('OJK'), true);
+
+    const mainJs = fs.readFileSync(path.join(rootDir, 'js/main.js'), 'utf8');
+    assert.equal(mainJs.includes('fonts.googleapis.com'), false, 'Must not leak user IP to external Google Fonts CDN');
+
+    const html = fs.readFileSync(path.join(rootDir, 'index.html'), 'utf8');
+    assert.equal(html.includes('id="tab-legal"'), true, 'Settings modal must include Legal tab');
+    assert.equal(html.includes('id="setting-live-markets-enabled"'), true, 'Legal tab must allow disabling external market API feeds');
+
+    const gradle = fs.readFileSync(path.join(rootDir, 'android/app/build.gradle'), 'utf8');
+    assert.equal(gradle.includes('playstore'), true, 'build.gradle must define playstore flavor');
+    assert.equal(gradle.includes('github'), true, 'build.gradle must define github flavor');
+    assert.equal(gradle.includes('ENABLE_SELF_UPDATE'), true, 'build.gradle must gate self-updater via ENABLE_SELF_UPDATE');
 });

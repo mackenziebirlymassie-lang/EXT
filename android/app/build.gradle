@@ -36,6 +36,18 @@ android {
         buildConfigField "String", "UPDATE_API_URL", "\"https://api.github.com/repos/mackenziebirlymassie-lang/EXT/releases/tags/latest\""
     }
 
+    flavorDimensions += "distribution"
+    productFlavors {
+        github {
+            dimension "distribution"
+            buildConfigField "boolean", "ENABLE_SELF_UPDATE", "true"
+        }
+        playstore {
+            dimension "distribution"
+            buildConfigField "boolean", "ENABLE_SELF_UPDATE", "false"
+        }
+    }
+
     buildFeatures {
         buildConfig = true
     }

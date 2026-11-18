@@ -96,7 +96,7 @@
 
     const cachedMarket = safeLoadJSON('appCachedPrices', null);
     const loadedVaults = safeLoadJSON('appSavingsVaults', [
-        { id: 'vault-1', name: 'M4 MacBook Pro', target: 3500, saved: 1200, icon: 'laptop' },
+        { id: 'vault-1', name: 'Workstation Laptop', target: 3500, saved: 1200, icon: 'laptop' },
         { id: 'vault-2', name: 'Emergency Buffer', target: 12000, saved: 4500, icon: 'shield' }
     ]);
 
@@ -112,7 +112,7 @@
     PFCC.state = {
         transactions: safeLoadJSON('appTransactions', []),
         subscriptions: safeLoadJSON('appSubscriptions', [
-            { id: 'sub-1', name: 'GitHub Copilot', amount: 10.00, billingCycle: 'monthly', category: 'Software' },
+            { id: 'sub-1', name: 'Code Assistant Pro', amount: 10.00, billingCycle: 'monthly', category: 'Software' },
             { id: 'sub-2', name: 'VPS Cloud Server', amount: 24.00, billingCycle: 'monthly', category: 'Housing' }
         ]),
         ious: safeLoadJSON('appIous', [
@@ -125,14 +125,15 @@
         liveChanges: (cachedMarket && cachedMarket.changes) ? cachedMarket.changes : { BTC: 0, ETH: 0, SOL: 0, PAXG: 0 },
         isPrivacyActive: false,
         soundEnabled: safeLoadJSON('appSoundEnabled', true) !== false,
+        liveMarketsEnabled: safeLoadJSON('appLiveMarketsEnabled', true) !== false,
         parsedCsvRows: [],
         csvListenersBound: false,
         savingsVaults: loadedVaults,
         debts: safeLoadJSON('appDebts', []),
         debtStrategy: 'snowball',
         autoRules: safeLoadJSON('appAutoRules', [
-            { id: 'rule-1', keywords: ['AWS', 'DigitalOcean', 'Vercel', 'Netlify'], amountThreshold: null, assignCategory: 'Software', assignTags: ['#devops', '#cloud'] },
-            { id: 'rule-2', keywords: ['Uber', 'Grab', 'Lyft', 'Bolt'], amountThreshold: null, assignCategory: 'Transport', assignTags: ['#transport'] },
+            { id: 'rule-1', keywords: ['Cloud Hosting', 'VPS Server', 'Domain Renewal'], amountThreshold: null, assignCategory: 'Software', assignTags: ['#devops', '#cloud'] },
+            { id: 'rule-2', keywords: ['Rideshare', 'Metro Transit', 'City Taxi'], amountThreshold: null, assignCategory: 'Transport', assignTags: ['#transport'] },
             { id: 'rule-3', keywords: [], amountThreshold: 500, assignCategory: '', assignTags: ['#major'] }
         ]),
         settings,
@@ -462,6 +463,7 @@
             setFont: g('setting-font'),
             setRadius: g('setting-radius'),
             setSoundEnabled: g('setting-sound-enabled'),
+            setLiveMarketsEnabled: g('setting-live-markets-enabled'),
             budgetCatSoftware: g('budget-cat-Software'),
             budgetCatFood: g('budget-cat-Food'),
             budgetCatHousing: g('budget-cat-Housing'),

@@ -142,6 +142,7 @@
         el.setFont.value = PFCC.themes.normalizeFont(s.font);
         el.setRadius.value = PFCC.themes.normalizeRadius(s.radius);
         if (el.setSoundEnabled) el.setSoundEnabled.checked = PFCC.state.soundEnabled;
+        if (el.setLiveMarketsEnabled) el.setLiveMarketsEnabled.checked = PFCC.state.liveMarketsEnabled;
 
         if (s.categoryBudgets) {
             if (el.budgetCatSoftware) el.budgetCatSoftware.value = s.categoryBudgets.Software || '';
@@ -218,6 +219,15 @@
             PFCC.state.soundEnabled = el.setSoundEnabled.checked;
             PFCC.utils.safeSaveJSON('appSoundEnabled', PFCC.state.soundEnabled);
             PFCC.audio.updateSoundButton();
+        }
+
+        if (el.setLiveMarketsEnabled) {
+            const wasEnabled = PFCC.state.liveMarketsEnabled;
+            PFCC.state.liveMarketsEnabled = el.setLiveMarketsEnabled.checked;
+            PFCC.utils.safeSaveJSON('appLiveMarketsEnabled', PFCC.state.liveMarketsEnabled);
+            if (!wasEnabled && PFCC.state.liveMarketsEnabled && PFCC.markets) {
+                PFCC.markets.fetchLivePrices();
+            }
         }
 
         PFCC.utils.safeSaveJSON('appSettings', PFCC.state.settings);
@@ -368,16 +378,19 @@
         const androidBuildLabel = document.getElementById('android-build-label');
         const btnCheckAndroidUpdate = document.getElementById('btn-check-android-update');
         if (androidUpdateSection && global.AndroidBridge && typeof global.AndroidBridge.checkForUpdates === 'function') {
-            androidUpdateSection.style.display = 'block';
-            if (androidBuildLabel && typeof global.AndroidBridge.getAppBuild === 'function') {
-                androidBuildLabel.value = String(global.AndroidBridge.getAppBuild());
-            }
-            if (btnCheckAndroidUpdate) {
-                btnCheckAndroidUpdate.addEventListener('click', () => {
-                    PFCC.audio.playClickSound();
-                    PFCC.showToast('Checking GitHub releases for APK update...', 'info');
-                    global.AndroidBridge.checkForUpdates(true);
-                });
+            const selfUpdateSupported = typeof global.AndroidBridge.isSelfUpdateEnabled !== 'function' || global.AndroidBridge.isSelfUpdateEnabled();
+            if (selfUpdateSupported) {
+                androidUpdateSection.style.display = 'block';
+                if (androidBuildLabel && typeof global.AndroidBridge.getAppBuild === 'function') {
+                    androidBuildLabel.value = String(global.AndroidBridge.getAppBuild());
+                }
+                if (btnCheckAndroidUpdate) {
+                    btnCheckAndroidUpdate.addEventListener('click', () => {
+                        PFCC.audio.playClickSound();
+                        PFCC.showToast('Checking GitHub releases for APK update...', 'info');
+                        global.AndroidBridge.checkForUpdates(true);
+                    });
+                }
             }
         }
 

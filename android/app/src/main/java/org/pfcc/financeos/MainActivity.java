@@ -93,7 +93,7 @@ public class MainActivity extends Activity {
             @Override
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
-                if (!startupUpdateChecked && url != null && url.startsWith("file:///android_asset/")) {
+                if (BuildConfig.ENABLE_SELF_UPDATE && !startupUpdateChecked && url != null && url.startsWith("file:///android_asset/")) {
                     startupUpdateChecked = true;
                     checkForGitHubUpdate(false);
                 }
@@ -180,6 +180,7 @@ public class MainActivity extends Activity {
     }
 
     private void checkForGitHubUpdate(boolean userInitiated) {
+        if (!BuildConfig.ENABLE_SELF_UPDATE) return;
         ioExecutor.execute(() -> {
             HttpURLConnection conn = null;
             try {
@@ -512,12 +513,19 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
+        public boolean isSelfUpdateEnabled() {
+            return BuildConfig.ENABLE_SELF_UPDATE;
+        }
+
+        @JavascriptInterface
         public void checkForUpdates(boolean userInitiated) {
+            if (!BuildConfig.ENABLE_SELF_UPDATE) return;
             checkForGitHubUpdate(userInitiated);
         }
 
         @JavascriptInterface
         public void startApkUpdate(String downloadUrl) {
+            if (!BuildConfig.ENABLE_SELF_UPDATE) return;
             downloadAndInstallApk(downloadUrl);
         }
     }

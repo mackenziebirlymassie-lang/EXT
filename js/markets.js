@@ -227,8 +227,14 @@
                 fetchLivePrices();
             });
         }
-        fetchLivePrices();
-        setInterval(fetchLivePrices, 30000);
+        if (PFCC.state.liveMarketsEnabled) {
+            fetchLivePrices();
+        } else {
+            setMarketStatus('OFFLINE', 'Automatic market sync paused in Legal & Privacy settings. Tap Sync to fetch manually.');
+        }
+        setInterval(() => {
+            if (PFCC.state.liveMarketsEnabled) fetchLivePrices();
+        }, 30000);
     }
 
     PFCC.markets = {

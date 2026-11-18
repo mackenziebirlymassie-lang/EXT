@@ -323,7 +323,7 @@
                                     <div class="form-row">
                                         <div class="form-group">
                                             <label for="sub-name">Subscription Name</label>
-                                            <input type="text" id="sub-name" placeholder="e.g. GitHub Copilot, VPS" required />
+                                            <input type="text" id="sub-name" placeholder="e.g. Code Assistant, VPS" required />
                                         </div>
                                         <div class="form-group">
                                             <label for="sub-amount">Price</label>
@@ -379,7 +379,7 @@
                                         </div>
                                         <div class="form-group">
                                             <label for="iou-desc">Reason / Note</label>
-                                            <input type="text" id="iou-desc" placeholder="e.g. Dinner, AWS Cloud split" required />
+                                            <input type="text" id="iou-desc" placeholder="e.g. Dinner, Cloud split" required />
                                         </div>
                                     </div>
                                     <div class="form-actions-row">
@@ -614,7 +614,7 @@
                                     <div class="form-row">
                                         <div class="form-group">
                                             <label for="vault-name">Vault Name</label>
-                                            <input type="text" id="vault-name" placeholder="e.g. M4 MacBook Pro" required />
+                                            <input type="text" id="vault-name" placeholder="e.g. Workstation Laptop" required />
                                         </div>
                                         <div class="form-group">
                                             <label for="vault-target">Target Amount</label>
@@ -807,7 +807,7 @@
 
         <footer class="app-footer">
             <span>EXT | Zero-Dependency Expense Tracker</span>
-            <span>All records persist locally in browser storage</span>
+            <span>Informational ledger &amp; simulator only. Not financial, tax, or investment advice.</span>
         </footer>
     </div>
 
@@ -830,9 +830,9 @@
                 <button type="button" class="cmd-item" data-cmd="/add 50 VPS Server Software"><span class="cmd-code">/add &lt;amt&gt; &lt;desc&gt; [cat]</span><span class="cmd-desc">Add expense</span></button>
                 <button type="button" class="cmd-item" data-cmd="/income 3500 Freelance Salary"><span class="cmd-code">/income &lt;amt&gt; &lt;desc&gt; [cat]</span><span class="cmd-desc">Add income</span></button>
                 <button type="button" class="cmd-item" data-cmd="/view budget"><span class="cmd-code">/view &lt;ledger|budget|treasury|forecast&gt;</span><span class="cmd-desc">Switch workbench view</span></button>
-                <button type="button" class="cmd-item" data-cmd="/vault M4_MacBook 3500 1200"><span class="cmd-code">/vault &lt;name&gt; &lt;target&gt; [saved]</span><span class="cmd-desc">Create savings vault</span></button>
+                <button type="button" class="cmd-item" data-cmd="/vault Workstation 3500 1200"><span class="cmd-code">/vault &lt;name&gt; &lt;target&gt; [saved]</span><span class="cmd-desc">Create savings vault</span></button>
                 <button type="button" class="cmd-item" data-cmd="/debt StudentLoan 5000 150 4.5"><span class="cmd-code">/debt &lt;name&gt; &lt;bal&gt; [min] [apr]</span><span class="cmd-desc">Add debt liability</span></button>
-                <button type="button" class="cmd-item" data-cmd="/rule AWS Software"><span class="cmd-code">/rule &lt;keyword&gt; [category]</span><span class="cmd-desc">Add auto-categorization rule</span></button>
+                <button type="button" class="cmd-item" data-cmd="/rule Hosting Software"><span class="cmd-code">/rule &lt;keyword&gt; [category]</span><span class="cmd-desc">Add auto-categorization rule</span></button>
                 <button type="button" class="cmd-item" data-cmd="/theme crimson"><span class="cmd-code">/theme &lt;name&gt;</span><span class="cmd-desc">Switch OS theme</span></button>
                 <button type="button" class="cmd-item" data-cmd="/budget 2500"><span class="cmd-code">/budget &lt;amt&gt;</span><span class="cmd-desc">Set monthly budget</span></button>
                 <button type="button" class="cmd-item" data-cmd="/goal 500"><span class="cmd-code">/goal &lt;amt&gt;</span><span class="cmd-desc">Set savings goal</span></button>
@@ -880,6 +880,10 @@
                 <button type="button" class="tab-btn" data-tab="rules" role="tab" aria-selected="false">
                     <span class="icon-slot" data-icon="cpu" data-icon-size="14"></span>
                     <span data-i18n="tab_rules">Rules</span>
+                </button>
+                <button type="button" class="tab-btn" data-tab="legal" role="tab" aria-selected="false">
+                    <span class="icon-slot" data-icon="shield" data-icon-size="14"></span>
+                    <span>Legal</span>
                 </button>
             </div>
 
@@ -1071,7 +1075,7 @@
                         <div class="form-row">
                             <div class="form-group">
                                 <label for="rule-keywords">If Description Contains (comma-separated)</label>
-                                <input type="text" id="rule-keywords" placeholder="e.g. AWS, DigitalOcean, Vercel" />
+                                <input type="text" id="rule-keywords" placeholder="e.g. Cloud Hosting, VPS Server" />
                             </div>
                             <div class="form-group">
                                 <label for="rule-amount-threshold">OR Amount Greater Than</label>
@@ -1100,6 +1104,22 @@
                         <button type="button" id="btn-add-rule" class="btn btn-primary btn-inline-auto">+ Add Rule</button>
                     </div>
                     <ul id="rules-list" class="sub-list rules-list-box"></ul>
+                </div>
+
+                <div class="tab-content" id="tab-legal" role="tabpanel">
+                    <h3 class="config-subtitle">Financial, Tax &amp; Market Disclaimer</h3>
+                    <p class="helper-copy">EXT is a personal bookkeeping ledger and mathematical calculator for informational use only. Outputs such as Budget Insights, Tax Reserve, Debt Payoff, FIRE Target, and Forecast CAGR are estimates from user-entered numbers and do not constitute financial, tax, legal, or investment advice. EXT is not a bank, exchange, or regulated financial institution under OJK, Bappebti, SEC, FCA, or MiCA.</p>
+                    <p class="helper-copy"><strong>Indonesia (ID):</strong> Aplikasi ini hanya alat pencatatan keuangan pribadi dan kalkulator simulasi, bukan layanan jasa keuangan, investasi, atau penasihat pajak yang diawasi oleh OJK maupun Bappebti.</p>
+
+                    <h3 class="config-subtitle spaced-subtitle">Privacy, Local Storage &amp; External Feeds (UU PDP &amp; GDPR)</h3>
+                    <p class="helper-copy">All transactions, budgets, receipts, vaults, and rules are stored exclusively on your device (localStorage). The developer has zero access to, and keeps no backups of, your data. You are solely responsible for exporting periodic backups via Config -&gt; Data.</p>
+                    <div class="checkbox-row">
+                        <input type="checkbox" id="setting-live-markets-enabled" checked />
+                        <label for="setting-live-markets-enabled">Enable optional public market price feed (CoinLore / Binance / Gate.io / CoinGecko)</label>
+                    </div>
+
+                    <h3 class="config-subtitle spaced-subtitle">Warranty &amp; Liability (MIT License)</h3>
+                    <p class="helper-copy">Provided "AS IS" without warranty of any kind. In no event shall the authors or copyright holders be liable for any financial loss, tax miscalculation, or local data loss arising from use of this software.</p>
                 </div>
             </div>
 

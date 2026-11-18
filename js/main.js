@@ -356,18 +356,6 @@
         }, 750);
     }
 
-    function loadExternalFontsAsync() {
-        if (!document.head || (global.navigator && global.navigator.onLine === false)) return;
-        setTimeout(() => {
-            if (document.getElementById('ext-google-fonts')) return;
-            const link = document.createElement('link');
-            link.id = 'ext-google-fonts';
-            link.rel = 'stylesheet';
-            link.href = 'https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap';
-            document.head.appendChild(link);
-        }, 100);
-    }
-
     function bootstrap() {
         runStartupSweep();
         PFCC.collectDom();
@@ -389,7 +377,6 @@
         updateTimeframeUI();
         switchWorkbenchView(PFCC.state.activeView);
         updateDOM();
-        loadExternalFontsAsync();
         PFCC._bootstrapped = true;
     }
 

@@ -84,13 +84,13 @@ jobs:
         with:
           gradle-version: "8.9"
 
-      - name: Build Debug APK
+      - name: Build GitHub Debug APK
         working-directory: android
-        run: gradle assembleDebug --no-daemon
+        run: gradle assembleGithubDebug --no-daemon
 
       - name: Verify APK signing certificate consistency
         run: |
-          APK_PATH=$(ls android/app/build/outputs/apk/debug/*.apk | head -n 1)
+          APK_PATH=$(ls android/app/build/outputs/apk/github/debug/*.apk | head -n 1)
           APKSIGNER="${ANDROID_HOME}/build-tools/35.0.0/apksigner"
           CERT_OUT=$("$APKSIGNER" verify --print-certs "$APK_PATH")
           echo "$CERT_OUT"
