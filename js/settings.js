@@ -404,7 +404,7 @@
                 PFCC.audio.playClickSound();
                 const s = PFCC.state;
                 const payload = {
-                    app: 'Developer_Finance_OS',
+                    app: 'EXT',
                     exportedAt: new Date().toISOString(),
                     transactions: s.transactions,
                     subscriptions: s.subscriptions,
@@ -417,7 +417,7 @@
                     settings: s.settings
                 };
                 PFCC.utils.downloadTextFile(
-                    `finance_os_backup_${PFCC.utils.getLocalDateString()}.json`,
+                    `ext_backup_${PFCC.utils.getLocalDateString()}.json`,
                     JSON.stringify(payload, null, 2),
                     'application/json;charset=utf-8'
                 );

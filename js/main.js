@@ -1,7 +1,7 @@
 (function (global) {
     'use strict';
 
-    const PFCC = global.PFCC = global.PFCC || {};
+    const PFCC = global.PFCC = global.EXT = global.PFCC || {};
 
     function updateTimeframeUI() {
         const el = PFCC.dom;
@@ -333,9 +333,9 @@
     function loadExternalFontsAsync() {
         if (!document.head || (global.navigator && global.navigator.onLine === false)) return;
         setTimeout(() => {
-            if (document.getElementById('pfcc-google-fonts')) return;
+            if (document.getElementById('ext-google-fonts')) return;
             const link = document.createElement('link');
-            link.id = 'pfcc-google-fonts';
+            link.id = 'ext-google-fonts';
             link.rel = 'stylesheet';
             link.href = 'https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap';
             document.head.appendChild(link);

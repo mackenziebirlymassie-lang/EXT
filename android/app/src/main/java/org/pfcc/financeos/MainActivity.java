@@ -188,7 +188,7 @@ public class MainActivity extends Activity {
                 conn.setConnectTimeout(6000);
                 conn.setReadTimeout(6000);
                 conn.setRequestProperty("Accept", "application/vnd.github+json");
-                conn.setRequestProperty("User-Agent", "PFCC-Finance-OS-Android");
+                conn.setRequestProperty("User-Agent", "EXT-Expense-Tracker-Android");
 
                 int code = conn.getResponseCode();
                 if (code != HttpURLConnection.HTTP_OK) {
@@ -207,7 +207,7 @@ public class MainActivity extends Activity {
                 }
 
                 JSONObject json = new JSONObject(sb.toString());
-                String title = json.optString("name", "PFCC V2 Update");
+                String title = json.optString("name", "EXT Update");
                 String body = json.optString("body", "");
                 int remoteBuild = parseBuildNumber(body, title);
                 String apkUrl = extractApkUrl(json.optJSONArray("assets"));
@@ -238,6 +238,10 @@ public class MainActivity extends Activity {
     }
 
     private int parseBuildNumber(String body, String title) {
+        Matcher em = Pattern.compile("EXT_BUILD:(\\d+)").matcher(body != null ? body : "");
+        if (em.find()) {
+            return Integer.parseInt(em.group(1));
+        }
         Matcher m = Pattern.compile("PFCC_BUILD:(\\d+)").matcher(body != null ? body : "");
         if (m.find()) {
             return Integer.parseInt(m.group(1));
@@ -278,7 +282,7 @@ public class MainActivity extends Activity {
         ioExecutor.execute(() -> {
             HttpURLConnection conn = null;
             File outFile = ApkFileProvider.getUpdateApkFile(this);
-            File tmpFile = new File(outFile.getParentFile(), "PFCC-V2-latest.tmp");
+            File tmpFile = new File(outFile.getParentFile(), "EXT-latest.tmp");
             try {
                 String currentUrl = downloadUrl;
                 for (int hops = 0; hops < 5; hops++) {
@@ -286,7 +290,7 @@ public class MainActivity extends Activity {
                     conn.setInstanceFollowRedirects(false);
                     conn.setConnectTimeout(15000);
                     conn.setReadTimeout(30000);
-                    conn.setRequestProperty("User-Agent", "PFCC-Finance-OS-Android");
+                    conn.setRequestProperty("User-Agent", "EXT-Expense-Tracker-Android");
                     int status = conn.getResponseCode();
                     if (status == HttpURLConnection.HTTP_MOVED_TEMP || status == HttpURLConnection.HTTP_MOVED_PERM || status == 307 || status == 308) {
                         String next = conn.getHeaderField("Location");

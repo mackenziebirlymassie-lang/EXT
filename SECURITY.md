@@ -2,7 +2,7 @@
 
 ## Local-First Architecture
 
-PFCC V2 stores all financial transactions, settings, and receipt attachments locally in browser `localStorage`. No user financial data is transmitted to a project backend. External network requests are limited to read-only public cryptocurrency and gold price feeds (`CoinLore`, `Binance Vision`, `Gate.io`, `CoinGecko`) when syncing market prices.
+EXT stores all financial transactions, settings, and receipt attachments locally in browser `localStorage`. No user financial data is transmitted to a project backend. External network requests are limited to read-only public cryptocurrency and gold price feeds (`CoinLore`, `Binance Vision`, `Gate.io`, `CoinGecko`) when syncing market prices.
 
 ## Reporting a Vulnerability
 

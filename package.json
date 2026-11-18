@@ -1,7 +1,7 @@
 {
-  "name": "pfcc-finance-os",
+  "name": "ext-expense-tracker",
   "version": "2.0.0",
-  "description": "Local-first personal finance, treasury, and cashflow console with zero runtime dependencies and Android 7.0+ (Chromium 51+) compatibility.",
+  "description": "EXT: Local-first expense tracker, treasury, and cashflow console with zero runtime dependencies and Android 7.0+ (Chromium 51+) compatibility.",
   "main": "index.html",
   "scripts": {
     "test": "node --test tests/verify.mjs",

@@ -1,4 +1,4 @@
-# Contributing to PFCC V2
+# Contributing to EXT
 
 Contributions are welcome. Keep pull requests focused, small, and compliant with the project constraints below.
 

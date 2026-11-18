@@ -652,3 +652,23 @@ test('mobile compact UI toggles, 2x2 mobile grids, and compact ledger row styles
     assert.equal(/@media\s*\(max-width:\s*640px\)[\s\S]*\.submetrics-grid\.three-col\s*\{[\s\S]*repeat\(3,\s*minmax\(0,\s*1fr\)\)/.test(css), true, '640px mobile must render debt summary three-col in 3-col strip');
     assert.equal(/@media\s*\(max-width:\s*640px\)[\s\S]*\.ledger-row\s*\{[\s\S]*display:\s*grid/.test(css), true, '640px mobile must render ledger rows as compact CSS grid cards');
 });
+
+test('EXT brand identity is applied across web, Android launcher, and release updater with backward compatibility', () => {
+    const html = fs.readFileSync(path.join(rootDir, 'index.html'), 'utf8');
+    const stringsXml = fs.readFileSync(path.join(rootDir, 'android/app/src/main/res/values/strings.xml'), 'utf8');
+    const pkg = JSON.parse(fs.readFileSync(path.join(rootDir, 'package.json'), 'utf8'));
+    const workflow = fs.readFileSync(path.join(rootDir, '.github/workflows/android-apk.yml'), 'utf8');
+    const java = fs.readFileSync(path.join(rootDir, 'android/app/src/main/java/org/pfcc/financeos/MainActivity.java'), 'utf8');
+    const settingsJs = fs.readFileSync(path.join(rootDir, 'js/settings.js'), 'utf8');
+
+    assert.equal(html.includes('<title>EXT | Expense Tracker</title>'), true, 'HTML title must use EXT branding');
+    assert.equal(/<h1>\s*EXT\b/.test(html), true, 'Web header H1 must feature EXT');
+    assert.equal(stringsXml.includes('<string name="app_name">EXT</string>'), true, 'Android app_name must be EXT');
+    assert.equal(pkg.name, 'ext-expense-tracker');
+    assert.equal(workflow.includes('EXT-latest.apk'), true, 'Workflow should publish EXT-latest.apk');
+    assert.equal(workflow.includes('PFCC_BUILD:'), true, 'Workflow must retain PFCC_BUILD marker for Build #15/#16 in-place updates');
+    assert.equal(workflow.includes('EXT_BUILD:'), true, 'Workflow should include EXT_BUILD marker');
+    assert.equal(java.includes('EXT_BUILD:'), true, 'MainActivity should parse EXT_BUILD marker');
+    assert.equal(java.includes('PFCC_BUILD:'), true, 'MainActivity should retain PFCC_BUILD marker');
+    assert.equal(settingsJs.includes('ext_backup_'), true, 'JSON backup filename should use ext_backup_ prefix');
+});

@@ -1,4 +1,4 @@
-name: Build Android APK
+name: Build EXT Android APK
 
 on:
   push:
@@ -102,7 +102,7 @@ jobs:
       - name: Upload Debug APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: pfcc-finance-os-debug-apk
+          name: ext-android-debug-apk
           path: android/app/build/outputs/apk/debug/*.apk
 
       - name: Publish Moving Latest APK Release on main push
@@ -111,21 +111,21 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           APK_PATH=$(ls android/app/build/outputs/apk/debug/*.apk | head -n 1)
-          CP_PATH="PFCC-V2-latest.apk"
+          CP_PATH="EXT-latest.apk"
           cp "$APK_PATH" "$CP_PATH"
           SHORT_SHA="${GITHUB_SHA::7}"
-          NOTES=$(printf 'PFCC_BUILD:%s\nCommit: %s\nAutomated rolling APK build from main. In-app auto-updater installs updates in place while keeping local ledger data.' "${GITHUB_RUN_NUMBER}" "${SHORT_SHA}")
+          NOTES=$(printf 'EXT_BUILD:%s\nPFCC_BUILD:%s\nCommit: %s\nAutomated rolling APK build from main. In-app auto-updater installs updates in place while keeping local ledger data.' "${GITHUB_RUN_NUMBER}" "${GITHUB_RUN_NUMBER}" "${SHORT_SHA}")
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git tag -f latest HEAD
           git push -f origin refs/tags/latest
           if gh release view latest >/dev/null 2>&1; then
-            gh release edit latest --prerelease=false --latest --title "PFCC V2 Latest (Build #${GITHUB_RUN_NUMBER})" --notes "$NOTES"
+            gh release edit latest --prerelease=false --latest --title "EXT Latest (Build #${GITHUB_RUN_NUMBER})" --notes "$NOTES"
             gh release upload latest "$CP_PATH" --clobber
           else
             gh release create latest "$CP_PATH" \
               --latest \
-              --title "PFCC V2 Latest (Build #${GITHUB_RUN_NUMBER})" \
+              --title "EXT Latest (Build #${GITHUB_RUN_NUMBER})" \
               --notes "$NOTES"
           fi
 
@@ -135,13 +135,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           APK_PATH=$(ls android/app/build/outputs/apk/debug/*.apk | head -n 1)
-          CP_PATH="PFCC-V2-${GITHUB_REF_NAME}-debug.apk"
+          CP_PATH="EXT-${GITHUB_REF_NAME}-debug.apk"
           cp "$APK_PATH" "$CP_PATH"
-          NOTES=$(printf 'PFCC_BUILD:%s\nRelease %s compiled from Android SDK 35 (minSdk 24 / Android 7.0+).' "${GITHUB_RUN_NUMBER}" "${GITHUB_REF_NAME}")
+          NOTES=$(printf 'EXT_BUILD:%s\nPFCC_BUILD:%s\nRelease %s compiled from Android SDK 35 (minSdk 24 / Android 7.0+).' "${GITHUB_RUN_NUMBER}" "${GITHUB_RUN_NUMBER}" "${GITHUB_REF_NAME}")
           if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
             gh release upload "${GITHUB_REF_NAME}" "$CP_PATH" --clobber
           else
             gh release create "${GITHUB_REF_NAME}" "$CP_PATH" \
-              --title "PFCC V2 (${GITHUB_REF_NAME})" \
+              --title "EXT (${GITHUB_REF_NAME})" \
               --notes "$NOTES"
           fi

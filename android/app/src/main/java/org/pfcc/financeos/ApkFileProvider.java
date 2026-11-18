@@ -15,7 +15,7 @@ import java.io.FileNotFoundException;
 
 public class ApkFileProvider extends ContentProvider {
 
-    public static final String APK_FILENAME = "PFCC-V2-latest.apk";
+    public static final String APK_FILENAME = "EXT-latest.apk";
 
     public static File getUpdateApkFile(Context context) {
         File dir = new File(context.getCacheDir(), "updates");

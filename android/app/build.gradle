@@ -6,7 +6,7 @@ def webRootDir = rootProject.projectDir.parentFile
 def webAssetsOutDir = file("${projectDir}/src/main/assets/www")
 
 tasks.register("syncWebAssets", Copy) {
-    description = "Copies PFCC V2 root web files into Android assets/www before compilation."
+    description = "Copies EXT root web files into Android assets/www before compilation."
     doFirst {
         delete(webAssetsOutDir)
     }

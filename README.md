@@ -1,8 +1,8 @@
-# PFCC V2 (Developer_Finance_OS)
+# EXT (Expense Tracker)
 
-Local-first personal treasury, cashflow ledger, and runway console built with vanilla HTML5, CSS3, and ES6 JavaScript. Designed with zero build step, zero third-party runtime JavaScript dependencies, Obsidian Chrome tabular typography (`JetBrains Mono`), and verified compatibility down to Android 7.0+ (API Level 24 / Chromium 51+ WebView).
+Local-first expense tracker, personal treasury, cashflow ledger, and runway console built with vanilla HTML5, CSS3, and ES6 JavaScript. Designed with zero build step, zero third-party runtime JavaScript dependencies, Obsidian Chrome tabular typography (`JetBrains Mono`), and verified compatibility down to Android 7.0+ (API Level 24 / Chromium 51+ WebView).
 
-## Why PFCC V2
+## Why EXT
 
 - **100% Local-First & Private**: All ledgers, recurring commitments, rules, receipts, and preferences stay on your device (`localStorage`). No accounts, telemetry, or cloud sync servers required.
 - **Zero Runtime Dependencies**: Custom Hi-DPI `<canvas>` charts ([js/charts.js](js/charts.js)), inline SVG icon engine ([js/icons.js](js/icons.js)), CSV parser ([js/importer.js](js/importer.js)), and Web Audio feedback ([js/audio.js](js/audio.js)) run offline without Chart.js or icon CDNs.
@@ -78,7 +78,7 @@ Switch views via header tabs or keyboard (`Alt+1` through `Alt+4`):
 
 ## Quick Start (Desktop & Web)
 
-Because PFCC V2 uses classic deferred `<script>` tags with zero bundlers:
+Because EXT uses classic deferred `<script>` tags with zero bundlers:
 
 1. Clone this repository and open [index.html](index.html) directly in any browser (`file://`), or serve locally:
 
@@ -114,7 +114,7 @@ gradle assembleDebug
 
 Gradle also triggers `syncWebAssets` automatically before `preBuild`, outputting `android/app/build/outputs/apk/debug/app-debug.apk`.
 3. **Cloud Builds & Auto-Updates**:
-   - Every push to `main` triggers [android-apk.yml](.github/workflows/android-apk.yml) (`npm run android:sync`, `npm test`, `gradle assembleDebug`), signs with a cached consistent keystore, and publishes a rolling `latest` pre-release (`PFCC-V2-latest.apk`).
+   - Every push to `main` triggers [android-apk.yml](.github/workflows/android-apk.yml) (`npm run android:sync`, `npm test`, `gradle assembleDebug`), signs with a cached consistent keystore, and publishes a rolling `latest` release (`EXT-latest.apk`).
    - Installed APKs automatically check the `latest` GitHub Release on launch (or manually via **Config -> Data -> Check for APK Update**) and install newer builds in place via Android's Storage/Package Installer while keeping all `localStorage` data intact.
    - Pushing a `v*` tag attaches the versioned APK directly to the tagged GitHub Release.
 
