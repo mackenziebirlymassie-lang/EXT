@@ -504,7 +504,7 @@ public class MainActivity extends Activity {
                 if ("true".equals(value)) {
                     return;
                 }
-                if (webView.canGoBack()) {
+                if (webView != null && webView.canGoBack()) {
                     webView.goBack();
                 } else {
                     MainActivity.super.onBackPressed();
@@ -538,12 +538,13 @@ public class MainActivity extends Activity {
             String cleanMime = (mimeType == null || mimeType.isEmpty())
                 ? "text/plain"
                 : mimeType.split(";")[0].trim();
-            launchCreateDocument(filename, cleanMime, content.getBytes(StandardCharsets.UTF_8));
+            byte[] bytes = content.getBytes(StandardCharsets.UTF_8);
+            runOnUiThread(() -> launchCreateDocument(filename, cleanMime, bytes));
         }
 
         @JavascriptInterface
         public void saveBase64(String filename, String dataUri) {
-            saveDataUri(filename, dataUri);
+            runOnUiThread(() -> saveDataUri(filename, dataUri));
         }
 
         @JavascriptInterface
