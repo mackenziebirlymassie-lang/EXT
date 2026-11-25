@@ -260,8 +260,11 @@
     }
 
     function handleBackPress() {
-        if (dismissActiveOverlay()) return true;
         const el = PFCC.dom;
+        if (el.appLockOverlay && el.appLockOverlay.classList.contains('active')) {
+            return false;
+        }
+        if (dismissActiveOverlay()) return true;
         if (el.entryDetailsDrawer && el.entryDetailsDrawer.classList.contains('active')) {
             PFCC.ledger.setDetailsDrawerOpen(false);
             return true;
@@ -453,12 +456,13 @@
         if (action === 'expense') {
             switchWorkbenchView('ledger');
             setQuickEntryCollapsed(false);
-            if (el.typeInput) el.typeInput.value = 'expense';
-            if (PFCC.picker && typeof PFCC.picker.syncSelect === 'function' && el.typeInput) {
-                PFCC.picker.syncSelect(el.typeInput);
+            if (el.type) el.type.value = 'expense';
+            if (PFCC.picker && typeof PFCC.picker.syncSelect === 'function' && el.type) {
+                PFCC.picker.syncSelect(el.type);
             }
-            if (el.textInput) {
-                setTimeout(() => { el.textInput.focus(); }, 60);
+            const isLocked = el.appLockOverlay && el.appLockOverlay.classList.contains('active');
+            if (el.text && !isLocked) {
+                setTimeout(() => { el.text.focus(); }, 60);
             }
         } else if (action === 'budget') {
             switchWorkbenchView('budget');

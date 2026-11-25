@@ -454,10 +454,11 @@
             return true;
         });
 
+        const amtOf = t => PFCC.utils.isTransferTx(t) ? PFCC.utils.getTransferAmount(t) : Math.abs(t.amount);
         activeData.sort((a, b) => {
             if (state.ledgerFilter.sort === 'date_asc') return new Date(a.date) - new Date(b.date);
-            if (state.ledgerFilter.sort === 'amount_desc') return Math.abs(b.amount) - Math.abs(a.amount);
-            if (state.ledgerFilter.sort === 'amount_asc') return Math.abs(a.amount) - Math.abs(b.amount);
+            if (state.ledgerFilter.sort === 'amount_desc') return amtOf(b) - amtOf(a);
+            if (state.ledgerFilter.sort === 'amount_asc') return amtOf(a) - amtOf(b);
             return new Date(b.date) - new Date(a.date);
         });
 

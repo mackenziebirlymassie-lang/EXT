@@ -134,6 +134,23 @@
 
     const now = new Date();
 
+    const loadedAutoRules = safeLoadJSON('appAutoRules', [
+        { id: 'rule-1', keywords: ['Cloud Hosting', 'VPS Server', 'Domain Renewal'], amountThreshold: null, assignCategory: 'Software', assignTags: ['#devops', '#cloud'] },
+        { id: 'rule-2', keywords: ['Rideshare', 'Metro Transit', 'City Taxi'], amountThreshold: null, assignCategory: 'Transport', assignTags: ['#transport'] },
+        { id: 'rule-3', keywords: [], amountThreshold: 500, assignCategory: '', assignTags: ['#major'] }
+    ]);
+    if (Array.isArray(loadedAutoRules)) {
+        let migratedRules = false;
+        loadedAutoRules.forEach(r => {
+            // Repair rule-3 if an earlier backup restore turned assignCategory '' into 'Other'
+            if (r && r.id === 'rule-3' && r.assignCategory === 'Other' && r.amountThreshold === 500 && Array.isArray(r.keywords) && r.keywords.length === 0) {
+                r.assignCategory = '';
+                migratedRules = true;
+            }
+        });
+        if (migratedRules) safeSaveJSON('appAutoRules', loadedAutoRules);
+    }
+
     PFCC.state = {
         transactions: safeLoadJSON('appTransactions', []),
         subscriptions: safeLoadJSON('appSubscriptions', [
@@ -162,11 +179,7 @@
         savingsVaults: loadedVaults,
         debts: safeLoadJSON('appDebts', []),
         debtStrategy: 'snowball',
-        autoRules: safeLoadJSON('appAutoRules', [
-            { id: 'rule-1', keywords: ['Cloud Hosting', 'VPS Server', 'Domain Renewal'], amountThreshold: null, assignCategory: 'Software', assignTags: ['#devops', '#cloud'] },
-            { id: 'rule-2', keywords: ['Rideshare', 'Metro Transit', 'City Taxi'], amountThreshold: null, assignCategory: 'Transport', assignTags: ['#transport'] },
-            { id: 'rule-3', keywords: [], amountThreshold: 500, assignCategory: '', assignTags: ['#major'] }
-        ]),
+        autoRules: loadedAutoRules,
         settings,
         activeView: validViews.includes(savedView) ? savedView : 'ledger',
         activeUpperChart: 'pace',

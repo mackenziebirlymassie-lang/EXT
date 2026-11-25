@@ -505,7 +505,7 @@
                 id: String(r.id || ('rule-' + Date.now() + '-' + i)),
                 keywords: sanitizeStringArray(r.keywords),
                 amountThreshold: Number(r.amountThreshold) || 0,
-                assignCategory: String(r.assignCategory || 'Other'),
+                assignCategory: String(r.assignCategory || ''),
                 assignTags: sanitizeStringArray(r.assignTags)
             }));
         }

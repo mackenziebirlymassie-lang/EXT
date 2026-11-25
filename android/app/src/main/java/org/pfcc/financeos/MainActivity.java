@@ -143,6 +143,11 @@ public class MainActivity extends Activity {
                     intent = fileChooserParams != null
                         ? fileChooserParams.createIntent()
                         : new Intent(Intent.ACTION_GET_CONTENT).setType("*/*");
+                    String mime = intent.getType();
+                    if (mime == null || mime.isEmpty() || mime.startsWith(".") || "text/csv".equals(mime) || "application/json".equals(mime)) {
+                        intent.setType("*/*");
+                        intent.addCategory(Intent.CATEGORY_OPENABLE);
+                    }
                     startActivityForResult(intent, REQ_FILE_PICKER);
                     return true;
                 } catch (ActivityNotFoundException ex) {
@@ -407,7 +412,12 @@ public class MainActivity extends Activity {
 
         byte[] bytes;
         if (header.contains(";base64")) {
-            bytes = Base64.decode(payload, Base64.DEFAULT);
+            try {
+                bytes = Base64.decode(payload, Base64.DEFAULT);
+            } catch (IllegalArgumentException ex) {
+                Toast.makeText(this, "Invalid base64 export payload.", Toast.LENGTH_SHORT).show();
+                return;
+            }
         } else {
             bytes = Uri.decode(payload).getBytes(StandardCharsets.UTF_8);
         }
@@ -501,7 +511,7 @@ public class MainActivity extends Activity {
         webView.evaluateJavascript(
             "(function(){return !!(window.PFCC && PFCC.handleBackPress && PFCC.handleBackPress());})();",
             value -> {
-                if ("true".equals(value)) {
+                if (isFinishing() || isDestroyed() || "true".equals(value)) {
                     return;
                 }
                 if (webView != null && webView.canGoBack()) {

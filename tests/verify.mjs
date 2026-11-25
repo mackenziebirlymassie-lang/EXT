@@ -843,4 +843,42 @@ test('Android home-screen shortcuts and native device credential lock are wired 
     assert.equal(mainJava.includes('KeyguardManager'), true);
     assert.equal(mainJava.includes('requestDeviceUnlock'), true);
     assert.equal(mainJava.includes('PFCC.handleAndroidShortcut'), true);
+
+    const debugShortcutsPath = path.join(rootDir, 'android/app/src/debug/res/xml/shortcuts.xml');
+    assert.equal(fs.existsSync(debugShortcutsPath), true, 'Missing debug shortcuts.xml for .debug APK');
+    assert.equal(fs.readFileSync(debugShortcutsPath, 'utf8').includes('org.pfcc.financeos.debug'), true);
+});
+
+test('autoRules restore preserves empty assignCategory and startup repairs corrupted rule-3', () => {
+    const { PFCC } = loadAppModules({
+        appAutoRules: JSON.stringify([
+            { id: 'rule-3', keywords: [], amountThreshold: 500, assignCategory: 'Other', assignTags: ['#major'] }
+        ])
+    });
+    assert.equal(PFCC.state.autoRules[0].assignCategory, '');
+    const tx = { text: 'Dinner', amount: -600, category: 'Food', tags: [] };
+    PFCC.utils.applyAutoRules(tx);
+    assert.equal(tx.category, 'Food');
+    assert.deepEqual(tx.tags, ['#major']);
+
+    const cleaned = PFCC.settings.sanitizeRestoredPayload({
+        autoRules: [
+            { id: 'rule-3', keywords: [], amountThreshold: 500, assignCategory: '', assignTags: ['#major'] }
+        ]
+    });
+    assert.equal(cleaned.autoRules[0].assignCategory, '');
+});
+
+test('handleAndroidShortcut sets el.type and handleBackPress allows exit on lock screen', () => {
+    const { PFCC } = loadAppModules();
+    PFCC.collectDom();
+    PFCC._bootstrapped = true;
+    PFCC.dom.type = { value: 'income' };
+    PFCC.dom.text = { focus() {} };
+
+    PFCC.handleAndroidShortcut('expense');
+    assert.equal(PFCC.dom.type.value, 'expense');
+
+    PFCC.dom.appLockOverlay = { classList: { contains: cls => cls === 'active' } };
+    assert.equal(PFCC.handleBackPress(), false);
 });
