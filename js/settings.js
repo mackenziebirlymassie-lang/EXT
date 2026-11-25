@@ -247,6 +247,7 @@
         el.setLanguage.value = s.language;
         el.setBudget.value = s.budget;
         el.setSavingsGoal.value = s.savingsGoal || 500;
+        if (el.setAutoPostSubs) el.setAutoPostSubs.checked = Boolean(s.autoPostSubs);
         el.setCurrency.value = s.currency;
         el.setAnimSpeed.value = s.animSpeed || '0.16s';
         el.setPresetTheme.value = PFCC.themes.resolveThemeKey(s.preset);
@@ -317,6 +318,7 @@
             name: el.setName.value.trim() || 'User',
             budget: parseFloat(el.setBudget.value) || 0,
             savingsGoal: parseFloat(el.setSavingsGoal.value) || 0,
+            autoPostSubs: el.setAutoPostSubs ? Boolean(el.setAutoPostSubs.checked) : Boolean(s.autoPostSubs),
             currency: el.setCurrency.value,
             language: el.setLanguage.value,
             animSpeed: el.setAnimSpeed.value,
@@ -418,7 +420,9 @@
                 if (isXfer) {
                     cleanTx.isTransfer = true;
                     cleanTx.transferAmount = xferAmt;
+                    if (t.toAccount) cleanTx.toAccount = String(t.toAccount);
                 }
+                if (t.account) cleanTx.account = String(t.account);
                 return cleanTx;
             });
         }
@@ -488,6 +492,10 @@
         if (Array.isArray(imported.categories)) {
             const cleanedCats = sanitizeStringArray(imported.categories);
             if (cleanedCats.length > 0) result.categories = cleanedCats;
+        }
+        if (Array.isArray(imported.accounts)) {
+            const cleanedAccounts = sanitizeStringArray(imported.accounts);
+            if (cleanedAccounts.length > 0) result.accounts = cleanedAccounts;
         }
         if (Array.isArray(imported.quickPresets)) {
             result.quickPresets = imported.quickPresets.filter(isObj).map((p, i) => ({
@@ -682,6 +690,7 @@
                     debts: s.debts,
                     autoRules: s.autoRules,
                     categories: s.categories,
+                    accounts: s.accounts,
                     quickPresets: s.quickPresets,
                     settings: s.settings
                 };
@@ -745,6 +754,7 @@
                 if (cleaned.debts) s.debts = cleaned.debts;
                 if (cleaned.autoRules) s.autoRules = cleaned.autoRules;
                 if (cleaned.categories) s.categories = cleaned.categories;
+                if (cleaned.accounts) s.accounts = cleaned.accounts;
                 if (cleaned.quickPresets) s.quickPresets = cleaned.quickPresets;
                 if (cleaned.settings) s.settings = Object.assign(s.settings, cleaned.settings);
 
@@ -757,6 +767,7 @@
                 PFCC.utils.safeSaveJSON('appDebts', s.debts);
                 PFCC.utils.safeSaveJSON('appAutoRules', s.autoRules);
                 PFCC.utils.safeSaveJSON('appCategories', s.categories);
+                PFCC.utils.safeSaveJSON('appAccounts', s.accounts);
                 PFCC.utils.safeSaveJSON('appQuickPresets', s.quickPresets);
                 PFCC.utils.safeSaveJSON('appSettings', s.settings);
 
@@ -871,6 +882,13 @@
             el.btnDownloadWrapup.addEventListener('click', () => {
                 if (PFCC.charts && typeof PFCC.charts.downloadWrapupPng === 'function') {
                     PFCC.charts.downloadWrapupPng();
+                }
+            });
+        }
+        if (el.btnShareWrapup) {
+            el.btnShareWrapup.addEventListener('click', () => {
+                if (PFCC.charts && typeof PFCC.charts.shareWrapupPng === 'function') {
+                    PFCC.charts.shareWrapupPng();
                 }
             });
         }

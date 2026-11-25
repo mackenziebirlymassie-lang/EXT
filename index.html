@@ -255,6 +255,24 @@
                         <div id="entry-details-drawer" class="entry-details-drawer">
                             <div class="form-row">
                                 <div class="form-group">
+                                    <label for="account">Wallet / Account</label>
+                                    <select id="account">
+                                        <option value="Cash">Cash</option>
+                                        <option value="Bank">Bank</option>
+                                        <option value="E-Wallet">E-Wallet</option>
+                                    </select>
+                                </div>
+                                <div class="form-group" id="to-account-wrap" style="display: none;">
+                                    <label for="to-account">To Wallet (Transfer)</label>
+                                    <select id="to-account">
+                                        <option value="Bank">Bank</option>
+                                        <option value="Cash">Cash</option>
+                                        <option value="E-Wallet">E-Wallet</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
                                     <label for="tags">Tags (space-separated)</label>
                                     <input type="text" id="tags" placeholder="e.g. #tax #cloud #freelance" autocomplete="off" />
                                 </div>
@@ -352,6 +370,7 @@
                                 <button type="button" id="btn-bulk-delete" class="btn btn-danger btn-sm">Delete</button>
                             </div>
                         </div>
+                        <div id="account-balances-strip" class="account-balances-strip" aria-label="Wallet balances"></div>
                         <div class="ledger-table-wrap">
                             <table class="ledger-table">
                                 <thead>
@@ -1091,6 +1110,10 @@
                             <input type="number" id="setting-savings-goal" placeholder="500.00" step="50" min="0" />
                         </div>
                     </div>
+                    <div class="checkbox-row spaced-field">
+                        <input type="checkbox" id="setting-auto-post-subs" />
+                        <label for="setting-auto-post-subs">Auto-log recurring subscriptions on billing day</label>
+                    </div>
 
                     <h3 class="config-subtitle spaced-subtitle">Category Budget Limits</h3>
                     <div class="form-row">
@@ -1342,10 +1365,16 @@
                 </div>
             </div>
             <div class="modal-footer modal-footer-between">
-                <a id="btn-download-receipt" class="btn btn-outline btn-sm" download="receipt.png" href="#">
-                    <span class="icon-slot" data-icon="download" data-icon-size="14"></span>
-                    <span>Download Receipt</span>
-                </a>
+                <div class="modal-footer-actions">
+                    <a id="btn-download-receipt" class="btn btn-outline btn-sm" download="receipt.png" href="#">
+                        <span class="icon-slot" data-icon="download" data-icon-size="14"></span>
+                        <span>Download Receipt</span>
+                    </a>
+                    <button type="button" id="btn-share-receipt" class="btn btn-outline btn-sm">
+                        <span class="icon-slot" data-icon="share" data-icon-size="14"></span>
+                        <span>Share</span>
+                    </button>
+                </div>
                 <button type="button" id="btn-dismiss-receipt" class="btn btn-outline btn-sm">Close</button>
             </div>
         </div>
@@ -1423,10 +1452,16 @@
                 </div>
             </div>
             <div class="modal-footer modal-footer-between">
-                <button type="button" id="btn-download-wrapup" class="btn btn-primary btn-sm">
-                    <span class="icon-slot" data-icon="download" data-icon-size="14"></span>
-                    <span>Download PNG Card</span>
-                </button>
+                <div class="modal-footer-actions">
+                    <button type="button" id="btn-download-wrapup" class="btn btn-primary btn-sm">
+                        <span class="icon-slot" data-icon="download" data-icon-size="14"></span>
+                        <span>Download PNG Card</span>
+                    </button>
+                    <button type="button" id="btn-share-wrapup" class="btn btn-outline btn-sm">
+                        <span class="icon-slot" data-icon="share" data-icon-size="14"></span>
+                        <span>Share</span>
+                    </button>
+                </div>
                 <button type="button" id="btn-dismiss-wrapup" class="btn btn-outline btn-sm">Done</button>
             </div>
         </div>

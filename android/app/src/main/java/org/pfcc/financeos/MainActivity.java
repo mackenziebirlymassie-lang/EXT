@@ -217,8 +217,8 @@ public class MainActivity extends Activity {
             try {
                 conn = (HttpURLConnection) new URL(BuildConfig.UPDATE_API_URL).openConnection();
                 conn.setRequestMethod("GET");
-                conn.setConnectTimeout(6000);
-                conn.setReadTimeout(6000);
+                conn.setConnectTimeout(12000);
+                conn.setReadTimeout(12000);
                 conn.setRequestProperty("Accept", "application/vnd.github+json");
                 conn.setRequestProperty("User-Agent", "EXT-Expense-Tracker-Android");
 
@@ -261,7 +261,8 @@ public class MainActivity extends Activity {
                 }
             } catch (Exception ex) {
                 if (userInitiated) {
-                    runOnUiThread(() -> Toast.makeText(this, "Offline or update check failed.", Toast.LENGTH_SHORT).show());
+                    String errDetail = ex.getClass().getSimpleName();
+                    runOnUiThread(() -> Toast.makeText(this, "Update check failed (" + errDetail + ").", Toast.LENGTH_SHORT).show());
                 }
             } finally {
                 if (conn != null) conn.disconnect();
@@ -555,6 +556,52 @@ public class MainActivity extends Activity {
         @JavascriptInterface
         public void saveBase64(String filename, String dataUri) {
             runOnUiThread(() -> saveDataUri(filename, dataUri));
+        }
+
+        @JavascriptInterface
+        public void shareBase64(String filename, String dataUri) {
+            if (dataUri == null || !dataUri.startsWith("data:")) return;
+            int commaIdx = dataUri.indexOf(',');
+            if (commaIdx <= 5) return;
+            String header = dataUri.substring(5, commaIdx);
+            String payload = dataUri.substring(commaIdx + 1);
+            String mimeType = header.split(";")[0];
+            if (mimeType.isEmpty()) mimeType = "application/octet-stream";
+
+            final byte[] bytes;
+            try {
+                bytes = header.contains(";base64")
+                    ? Base64.decode(payload, Base64.DEFAULT)
+                    : Uri.decode(payload).getBytes(StandardCharsets.UTF_8);
+            } catch (IllegalArgumentException ex) {
+                runOnUiThread(() -> Toast.makeText(MainActivity.this, "Invalid share payload.", Toast.LENGTH_SHORT).show());
+                return;
+            }
+
+            final String finalMime = mimeType;
+            ioExecutor.execute(() -> {
+                try {
+                    File outFile = ApkFileProvider.getShareFile(MainActivity.this, filename);
+                    try (FileOutputStream fos = new FileOutputStream(outFile)) {
+                        fos.write(bytes);
+                        fos.flush();
+                    }
+                    Uri shareUri = ApkFileProvider.getShareUri(MainActivity.this, outFile.getName());
+                    runOnUiThread(() -> {
+                        Intent send = new Intent(Intent.ACTION_SEND);
+                        send.setType(finalMime);
+                        send.putExtra(Intent.EXTRA_STREAM, shareUri);
+                        send.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                        try {
+                            startActivity(Intent.createChooser(send, "Share via"));
+                        } catch (ActivityNotFoundException ex) {
+                            Toast.makeText(MainActivity.this, "No app found to share file.", Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                } catch (Exception ex) {
+                    runOnUiThread(() -> Toast.makeText(MainActivity.this, "Share failed: " + ex.getMessage(), Toast.LENGTH_SHORT).show());
+                }
+            });
         }
 
         @JavascriptInterface

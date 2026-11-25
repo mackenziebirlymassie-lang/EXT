@@ -77,6 +77,7 @@
         name: 'Developer',
         budget: 2500,
         savingsGoal: 500,
+        autoPostSubs: false,
         currency: 'USD',
         language: 'en',
         animSpeed: '0.16s',
@@ -171,6 +172,7 @@
         lockHash: safeLoadJSON('appLockHash', ''),
         lastBackupAt: safeLoadJSON('appLastBackupAt', 0),
         categories: loadedCategories,
+        accounts: safeLoadJSON('appAccounts', ['Cash', 'Bank', 'E-Wallet']),
         quickPresets: loadedPresets,
         selectedLedgerIds: [],
         bulkSelectActive: false,
@@ -215,6 +217,30 @@
         if (!isTransferTx(t)) return 0;
         const raw = t.transferAmount !== undefined ? t.transferAmount : t.amount;
         return Math.abs(Number(raw) || 0);
+    }
+
+    function getAccountBalances(txList) {
+        const balances = {};
+        const accounts = (PFCC.state && Array.isArray(PFCC.state.accounts) && PFCC.state.accounts.length > 0)
+            ? PFCC.state.accounts
+            : ['Cash', 'Bank', 'E-Wallet'];
+        accounts.forEach(a => { balances[a] = 0; });
+
+        (txList || []).forEach(t => {
+            if (!t) return;
+            const fromAcc = t.account || accounts[0];
+            if (balances[fromAcc] === undefined) balances[fromAcc] = 0;
+            if (isTransferTx(t)) {
+                const amt = getTransferAmount(t);
+                const toAcc = t.toAccount || accounts[1] || accounts[0];
+                if (balances[toAcc] === undefined) balances[toAcc] = 0;
+                balances[fromAcc] -= amt;
+                balances[toAcc] += amt;
+            } else {
+                balances[fromAcc] += Number(t.amount) || 0;
+            }
+        });
+        return balances;
     }
 
     function formatCategoryLabel(cat) {
@@ -506,6 +532,10 @@
             amount: g('amount'),
             type: g('type'),
             category: g('category'),
+            account: g('account'),
+            toAccount: g('to-account'),
+            toAccountWrap: g('to-account-wrap'),
+            accountBalancesStrip: g('account-balances-strip'),
             date: g('date'),
             tags: g('tags'),
             receiptFile: g('receipt-file'),
@@ -594,6 +624,7 @@
             btnCloseWrapup: g('btn-close-wrapup'),
             btnDismissWrapup: g('btn-dismiss-wrapup'),
             btnDownloadWrapup: g('btn-download-wrapup'),
+            btnShareWrapup: g('btn-share-wrapup'),
             wrapupSummaryGrid: g('wrapup-summary-grid'),
             wrapupCanvas: g('wrapupCanvas'),
             appLockOverlay: g('app-lock-overlay'),
@@ -625,6 +656,7 @@
             setLanguage: g('setting-language'),
             setBudget: g('setting-budget'),
             setSavingsGoal: g('setting-savings-goal'),
+            setAutoPostSubs: g('setting-auto-post-subs'),
             setCurrency: g('setting-currency'),
             setAnimSpeed: g('setting-anim-speed'),
             setPresetTheme: g('setting-preset-theme'),
@@ -681,6 +713,7 @@
             receiptPreviewImg: g('receipt-preview-img'),
             receiptMetaInfo: g('receipt-meta-info'),
             btnDownloadReceipt: g('btn-download-receipt'),
+            btnShareReceipt: g('btn-share-receipt'),
             shortcutsModal: g('shortcuts-modal'),
             btnCloseShortcuts: g('btn-close-shortcuts'),
             btnDismissShortcuts: g('btn-dismiss-shortcuts'),
@@ -768,6 +801,30 @@
         }
     }
 
+    function shareDataUri(filename, dataUri) {
+        if (!dataUri) return;
+        if (global.AndroidBridge && typeof global.AndroidBridge.shareBase64 === 'function') {
+            global.AndroidBridge.shareBase64(filename || 'share.png', dataUri);
+            return;
+        }
+        if (global.navigator && typeof global.navigator.share === 'function' && typeof global.fetch === 'function') {
+            global.fetch(dataUri)
+                .then(res => res.blob())
+                .then(blob => {
+                    const file = typeof global.File === 'function' ? new global.File([blob], filename || 'share.png', { type: blob.type || 'image/png' }) : null;
+                    if (file && (!global.navigator.canShare || global.navigator.canShare({ files: [file] }))) {
+                        return global.navigator.share({ files: [file], title: filename || 'EXT Share' });
+                    }
+                    return global.navigator.share({ title: filename || 'EXT Share', text: filename || 'EXT Export' });
+                })
+                .catch(() => {
+                    showToast('Share unavailable on this browser. Use Download instead.', 'info');
+                });
+            return;
+        }
+        showToast('Quick share is available in the Android APK or supported mobile browsers.', 'info');
+    }
+
     PFCC.utils = {
         safeLoadJSON,
         safeSaveJSON,
@@ -787,7 +844,9 @@
         getAllCategories,
         syncCategorySelects,
         sanitizeReceiptUrl,
-        downloadTextFile
+        downloadTextFile,
+        getAccountBalances,
+        shareDataUri
     };
     PFCC.showToast = showToast;
     PFCC.openActionDialog = openActionDialog;

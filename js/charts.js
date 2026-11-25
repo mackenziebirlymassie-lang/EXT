@@ -448,7 +448,33 @@
         }
 
         ranked.forEach(item => {
-            const row = PFCC.utils.createEl('div', 'alloc-row');
+            const row = PFCC.utils.createEl('div', 'alloc-row alloc-row--interactive');
+            row.setAttribute('role', 'button');
+            row.setAttribute('tabindex', '0');
+            row.setAttribute('aria-label', `Filter ledger by ${item.category}`);
+            const drillToCategory = () => {
+                PFCC.state.ledgerFilter.category = item.category;
+                if (PFCC.dom && PFCC.dom.ledgerCatFilter) {
+                    PFCC.dom.ledgerCatFilter.value = item.category;
+                    if (PFCC.picker && typeof PFCC.picker.syncSelect === 'function') {
+                        PFCC.picker.syncSelect(PFCC.dom.ledgerCatFilter);
+                    }
+                }
+                if (typeof PFCC.switchWorkbenchView === 'function') {
+                    PFCC.switchWorkbenchView('ledger');
+                }
+                if (PFCC.ledger && typeof PFCC.ledger.renderLedger === 'function') {
+                    PFCC.ledger.renderLedger();
+                }
+                if (PFCC.audio) PFCC.audio.playClickSound();
+            };
+            row.addEventListener('click', drillToCategory);
+            row.addEventListener('keydown', e => {
+                if (e && (e.key === 'Enter' || e.key === ' ')) {
+                    e.preventDefault();
+                    drillToCategory();
+                }
+            });
 
             const head = PFCC.utils.createEl('div', 'alloc-head');
             const labelWrap = PFCC.utils.createEl('span', 'alloc-cat');
@@ -707,6 +733,16 @@
         PFCC.audio.playSuccessSound();
     }
 
+    function shareWrapupPng() {
+        const canvas = PFCC.dom && PFCC.dom.wrapupCanvas;
+        if (!canvas || typeof canvas.toDataURL !== 'function') return;
+        const dataUrl = canvas.toDataURL('image/png');
+        const filename = `ext_wrapup_${PFCC.utils.getLocalDateString()}.png`;
+        if (PFCC.utils && typeof PFCC.utils.shareDataUri === 'function') {
+            PFCC.utils.shareDataUri(filename, dataUrl);
+        }
+    }
+
     PFCC.charts = {
         sizeHiDpiCanvas,
         formatShortMoney,
@@ -717,6 +753,7 @@
         updateUpperChart,
         renderWrapupSnapshot,
         downloadWrapupPng,
+        shareWrapupPng,
         initCharts
     };
 })(window);

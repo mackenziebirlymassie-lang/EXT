@@ -3933,6 +3933,61 @@ canvas {
     }
 }
 
+.account-balances-strip {
+    display: flex;
+    flex-wrap: wrap;
+    margin-bottom: var(--space-3);
+}
+
+.wallet-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    margin-right: 8px;
+    margin-bottom: 6px;
+    border: 1px solid var(--glass-border, var(--border-color));
+    border-radius: var(--ui-radius);
+    background: var(--glass-control, var(--bg-surface));
+    font-size: 0.78rem;
+}
+
+.wallet-chip-name {
+    color: var(--text-secondary);
+    margin-right: 6px;
+}
+
+.wallet-chip-val {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.ledger-wallet-tag {
+    color: var(--accent-text);
+    border-color: var(--glass-border-accent, var(--border-color));
+}
+
+.alloc-row--interactive {
+    cursor: pointer;
+    border-radius: var(--ui-radius);
+    padding: 4px 6px;
+    margin: -4px -6px;
+}
+
+.alloc-row--interactive:hover {
+    background: var(--bg-surface-hover);
+}
+
+.upcoming-bills-actions,
+.modal-footer-actions {
+    display: inline-flex;
+    align-items: center;
+}
+
+.upcoming-bills-actions > * + *,
+.modal-footer-actions > * + * {
+    margin-left: 8px;
+}
+
 @supports (display: grid) {
     .metrics-grid,
     .quick-entry-row,
@@ -4200,7 +4255,62 @@ canvas {
         }
     }
 
-    @supports (display: grid) {
+    .account-balances-strip {
+    display: flex;
+    flex-wrap: wrap;
+    margin-bottom: var(--space-3);
+}
+
+.wallet-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    margin-right: 8px;
+    margin-bottom: 6px;
+    border: 1px solid var(--glass-border, var(--border-color));
+    border-radius: var(--ui-radius);
+    background: var(--glass-control, var(--bg-surface));
+    font-size: 0.78rem;
+}
+
+.wallet-chip-name {
+    color: var(--text-secondary);
+    margin-right: 6px;
+}
+
+.wallet-chip-val {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.ledger-wallet-tag {
+    color: var(--accent-text);
+    border-color: var(--glass-border-accent, var(--border-color));
+}
+
+.alloc-row--interactive {
+    cursor: pointer;
+    border-radius: var(--ui-radius);
+    padding: 4px 6px;
+    margin: -4px -6px;
+}
+
+.alloc-row--interactive:hover {
+    background: var(--bg-surface-hover);
+}
+
+.upcoming-bills-actions,
+.modal-footer-actions {
+    display: inline-flex;
+    align-items: center;
+}
+
+.upcoming-bills-actions > * + *,
+.modal-footer-actions > * + * {
+    margin-left: 8px;
+}
+
+@supports (display: grid) {
         @media (max-width: 640px) {
             .header-actions,
             .ledger-row {

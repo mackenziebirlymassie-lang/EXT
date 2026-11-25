@@ -882,3 +882,43 @@ test('handleAndroidShortcut sets el.type and handleBackPress allows exit on lock
     PFCC.dom.appLockOverlay = { classList: { contains: cls => cls === 'active' } };
     assert.equal(PFCC.handleBackPress(), false);
 });
+
+test('getAccountBalances tracks per-wallet balances and transfers', () => {
+    const { PFCC } = loadAppModules();
+    const balances = PFCC.utils.getAccountBalances([
+        { id: '1', amount: 1000, account: 'Bank' },
+        { id: '2', amount: -50, account: 'Cash' },
+        { id: '3', amount: 0, isTransfer: true, transferAmount: 200, account: 'Bank', toAccount: 'E-Wallet' }
+    ]);
+    assert.equal(balances.Bank, 800);
+    assert.equal(balances.Cash, -50);
+    assert.equal(balances['E-Wallet'], 200);
+});
+
+test('autoPostDueSubscriptions posts due bills once per month and deduplicates', () => {
+    const { PFCC } = loadAppModules();
+    PFCC.state.settings.autoPostSubs = true;
+    PFCC.state.subscriptions = [
+        { id: 'sub-x', name: 'VPS', amount: 15, billingCycle: 'monthly', billingDay: 5, category: 'Software' },
+        { id: 'sub-y', name: 'Future', amount: 25, billingCycle: 'monthly', billingDay: 28, category: 'Software' }
+    ];
+    PFCC.state.transactions = [];
+    const refDate = new Date(2026, 3, 10);
+    const firstRun = PFCC.ledger.autoPostDueSubscriptions(refDate);
+    assert.equal(firstRun, 1);
+    assert.equal(PFCC.state.transactions.length, 1);
+    assert.equal(PFCC.state.transactions[0].amount, -15);
+    const secondRun = PFCC.ledger.autoPostDueSubscriptions(refDate);
+    assert.equal(secondRun, 0);
+    assert.equal(PFCC.state.transactions.length, 1);
+});
+
+test('Android quick-share bridge and share buttons are wired', () => {
+    const mainJava = fs.readFileSync(path.join(rootDir, 'android/app/src/main/java/org/pfcc/financeos/MainActivity.java'), 'utf8');
+    const providerJava = fs.readFileSync(path.join(rootDir, 'android/app/src/main/java/org/pfcc/financeos/ApkFileProvider.java'), 'utf8');
+    const html = fs.readFileSync(path.join(rootDir, 'index.html'), 'utf8');
+    assert.equal(mainJava.includes('shareBase64'), true);
+    assert.equal(providerJava.includes('SHARE_PREFIX'), true);
+    assert.equal(html.includes('btn-share-receipt'), true);
+    assert.equal(html.includes('btn-share-wrapup'), true);
+});

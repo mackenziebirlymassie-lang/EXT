@@ -38,6 +38,12 @@
         el.btnToggleEntryDetails.setAttribute('aria-expanded', String(open));
     }
 
+    function toggleToAccountVisibility() {
+        const el = PFCC.dom;
+        if (!el.toAccountWrap || !el.type) return;
+        el.toAccountWrap.style.display = el.type.value === 'transfer' ? '' : 'none';
+    }
+
     function startEditTransaction(t) {
         const el = PFCC.dom;
         if (typeof PFCC.switchWorkbenchView === 'function') PFCC.switchWorkbenchView('ledger');
@@ -49,9 +55,14 @@
         el.amount.value = isXfer ? PFCC.utils.getTransferAmount(t) : Math.abs(t.amount);
         el.type.value = isXfer ? 'transfer' : (t.amount < 0 ? 'expense' : 'income');
         el.category.value = t.category;
+        if (el.account) el.account.value = t.account || 'Cash';
+        if (el.toAccount) el.toAccount.value = t.toAccount || 'Bank';
+        toggleToAccountVisibility();
         if (PFCC.picker && typeof PFCC.picker.syncSelect === 'function') {
             PFCC.picker.syncSelect(el.type);
             PFCC.picker.syncSelect(el.category);
+            if (el.account) PFCC.picker.syncSelect(el.account);
+            if (el.toAccount) PFCC.picker.syncSelect(el.toAccount);
         }
         el.date.value = t.date;
         el.tags.value = (t.tags || []).join(' ');
@@ -95,6 +106,7 @@
         if (el.receiptData) el.receiptData.value = '';
         if (el.btnClearReceipt) el.btnClearReceipt.style.display = 'none';
         el.date.value = PFCC.utils.getLocalDateString();
+        toggleToAccountVisibility();
         setDetailsDrawerOpen(false);
         PFCC.audio.playClickSound();
     }
@@ -125,6 +137,8 @@
         const isExpense = txType === 'expense';
         const computedAmount = isTransfer ? 0 : (isExpense ? -Math.abs(rawAmount) : Math.abs(rawAmount));
         const receiptVal = el.receiptData ? el.receiptData.value : '';
+        const accountVal = el.account ? el.account.value : 'Cash';
+        const toAccountVal = (isTransfer && el.toAccount) ? el.toAccount.value : undefined;
 
         if (el.editId.value) {
             const targetId = el.editId.value;
@@ -134,6 +148,8 @@
                 PFCC.state.transactions[index].amount = computedAmount;
                 PFCC.state.transactions[index].isTransfer = isTransfer;
                 PFCC.state.transactions[index].transferAmount = isTransfer ? Math.abs(rawAmount) : undefined;
+                PFCC.state.transactions[index].account = accountVal;
+                PFCC.state.transactions[index].toAccount = toAccountVal;
                 PFCC.state.transactions[index].category = el.category.value;
                 PFCC.state.transactions[index].date = el.date.value;
                 PFCC.state.transactions[index].tags = parsedTags;
@@ -148,6 +164,8 @@
                 amount: computedAmount,
                 isTransfer,
                 transferAmount: isTransfer ? Math.abs(rawAmount) : undefined,
+                account: accountVal,
+                toAccount: toAccountVal,
                 category: el.category.value,
                 date: el.date.value,
                 tags: parsedTags,
@@ -355,9 +373,13 @@
         descRow.appendChild(PFCC.utils.createEl('span', 'ledger-desc', t.text));
         tdDesc.appendChild(descRow);
 
-        if (t.tags && t.tags.length > 0) {
+        if ((t.tags && t.tags.length > 0) || t.account) {
             const tagRow = PFCC.utils.createEl('div', 'ledger-tags-inline');
-            t.tags.forEach(tag => tagRow.appendChild(PFCC.utils.createEl('span', 'ledger-tag', tag)));
+            if (t.account) {
+                const wLabel = isTransfer ? `${t.account} -> ${t.toAccount || 'Bank'}` : t.account;
+                tagRow.appendChild(PFCC.utils.createEl('span', 'ledger-tag ledger-wallet-tag', wLabel));
+            }
+            (t.tags || []).forEach(tag => tagRow.appendChild(PFCC.utils.createEl('span', 'ledger-tag', tag)));
             tdDesc.appendChild(tagRow);
         }
 
@@ -430,7 +452,22 @@
         el.list.appendChild(tr);
     }
 
+    function renderAccountBalancesStrip() {
+        const el = PFCC.dom;
+        if (!el.accountBalancesStrip || typeof PFCC.utils.getAccountBalances !== 'function') return;
+        el.accountBalancesStrip.textContent = '';
+        const balances = PFCC.utils.getAccountBalances(PFCC.state.transactions);
+        Object.keys(balances).forEach(acc => {
+            const chip = PFCC.utils.createEl('div', 'wallet-chip');
+            chip.appendChild(PFCC.utils.createEl('span', 'wallet-chip-name', acc));
+            const val = balances[acc] || 0;
+            chip.appendChild(PFCC.utils.createEl('span', `wallet-chip-val ${val < 0 ? 'text-red' : ''}`, PFCC.utils.formatCurrency(val)));
+            el.accountBalancesStrip.appendChild(chip);
+        });
+    }
+
     function renderLedger() {
+        renderAccountBalancesStrip();
         const el = PFCC.dom;
         const state = PFCC.state;
         const timeframeFiltered = PFCC.utils.getFilteredTransactionsByTimeframe(state.transactions, state.timeframe);
@@ -512,6 +549,7 @@
         const extraTxt = upcoming.length > 1 ? ` (+${upcoming.length - 1} more in 7d)` : '';
         info.appendChild(PFCC.utils.createEl('span', '', `${first.name} (${PFCC.utils.formatCurrency(first.amount)}) - ${dueLabel}${extraTxt}`));
 
+        const actionsWrap = PFCC.utils.createEl('div', 'upcoming-bills-actions');
         const commitBtn = PFCC.utils.createEl('button', 'btn btn-outline btn-sm', 'Commit');
         commitBtn.type = 'button';
         commitBtn.addEventListener('click', () => {
@@ -529,9 +567,63 @@
             PFCC.updateDOM();
             PFCC.showToast(`Committed ${first.name} (${PFCC.utils.formatCurrency(first.amount)}) to ledger.`, 'success');
         });
+        actionsWrap.appendChild(commitBtn);
+
+        if (upcoming.length > 1) {
+            const commitAllBtn = PFCC.utils.createEl('button', 'btn btn-primary btn-sm', `Commit All (${upcoming.length})`);
+            commitAllBtn.type = 'button';
+            commitAllBtn.addEventListener('click', () => {
+                upcoming.forEach(item => {
+                    const t = {
+                        id: Math.floor(Math.random() * 100000000).toString(16),
+                        text: item.name,
+                        amount: -Math.abs(item.amount),
+                        category: item.category || 'Other',
+                        date: PFCC.utils.getLocalDateString(),
+                        tags: ['#upcoming', item.kind === 'debt' ? '#debt' : '#subscription']
+                    };
+                    PFCC.utils.applyAutoRules(t);
+                    PFCC.state.transactions.push(t);
+                });
+                PFCC.audio.playSuccessSound();
+                PFCC.updateDOM();
+                PFCC.showToast(`Committed ${upcoming.length} upcoming bills to ledger.`, 'success');
+            });
+            actionsWrap.appendChild(commitAllBtn);
+        }
 
         el.upcomingBillsBanner.appendChild(info);
-        el.upcomingBillsBanner.appendChild(commitBtn);
+        el.upcomingBillsBanner.appendChild(actionsWrap);
+    }
+
+    function autoPostDueSubscriptions(refDate) {
+        if (!PFCC.state.settings || !PFCC.state.settings.autoPostSubs) return 0;
+        const today = refDate || new Date();
+        const yyyyMm = `${today.getFullYear()}-${PFCC.compat.pad2(today.getMonth() + 1)}`;
+        const dom = today.getDate();
+        let posted = 0;
+
+        (PFCC.state.subscriptions || []).forEach(sub => {
+            const day = parseInt(sub.billingDay, 10);
+            if (!day || day < 1 || day > dom) return;
+            const dedupeTag = `#sub-auto:${sub.id}:${yyyyMm}`;
+            const exists = PFCC.state.transactions.some(t => Array.isArray(t.tags) && t.tags.includes(dedupeTag));
+            if (exists) return;
+
+            const tx = {
+                id: Math.floor(Math.random() * 100000000).toString(16),
+                text: `${sub.name} (Auto-Posted)`,
+                amount: -Math.abs(sub.amount),
+                account: 'Bank',
+                category: sub.category || 'Software',
+                date: PFCC.utils.getLocalDateString(today),
+                tags: ['#subscription', dedupeTag]
+            };
+            PFCC.utils.applyAutoRules(tx);
+            PFCC.state.transactions.push(tx);
+            posted++;
+        });
+        return posted;
     }
 
     function renderSubscriptions() {
@@ -735,6 +827,8 @@
         }
 
         if (el.form) el.form.addEventListener('submit', handleTransactionSubmit);
+        if (el.type) el.type.addEventListener('change', toggleToAccountVisibility);
+        toggleToAccountVisibility();
         if (el.btnCancelEdit) el.btnCancelEdit.addEventListener('click', cancelEditTransaction);
         if (el.btnCancelEditBanner) el.btnCancelEditBanner.addEventListener('click', cancelEditTransaction);
 
@@ -874,6 +968,16 @@
                     global.AndroidBridge.saveBase64(
                         el.btnDownloadReceipt.download || 'receipt.jpg',
                         el.btnDownloadReceipt.href || ''
+                    );
+                }
+            });
+        }
+        if (el.btnShareReceipt) {
+            el.btnShareReceipt.addEventListener('click', () => {
+                if (PFCC.utils && typeof PFCC.utils.shareDataUri === 'function') {
+                    PFCC.utils.shareDataUri(
+                        (el.btnDownloadReceipt && el.btnDownloadReceipt.download) || 'receipt.jpg',
+                        (el.btnDownloadReceipt && el.btnDownloadReceipt.href) || ''
                     );
                 }
             });
@@ -1045,6 +1149,7 @@
         renderLedger,
         renderSubscriptions,
         renderIous,
+        autoPostDueSubscriptions,
         initLedger
     };
 })(window);

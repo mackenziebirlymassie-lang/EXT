@@ -492,6 +492,9 @@
         PFCC.markets.initMarkets();
         initGlobalEvents();
         initAppLock();
+        if (PFCC.ledger && typeof PFCC.ledger.autoPostDueSubscriptions === 'function') {
+            PFCC.ledger.autoPostDueSubscriptions();
+        }
         updateTimeframeUI();
         switchWorkbenchView(PFCC.state.activeView);
         updateDOM();
